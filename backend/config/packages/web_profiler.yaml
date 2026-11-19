@@ -1,0 +1,13 @@
+when@dev:
+    web_profiler:
+        toolbar:
+            enabled: true
+            ajax_replace: true
+
+    framework:
+        profiler: true
+
+when@test:
+    framework:
+        profiler:
+            collect: false

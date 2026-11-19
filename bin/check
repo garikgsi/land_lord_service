@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+set -eu
+
+cd "$(dirname "$0")/.."
+
+docker compose config --quiet
+docker compose run --rm --no-deps node npm run build
+docker compose exec -T php composer validate --strict
+docker compose exec -T php composer check-platform-reqs
+docker compose exec -T php php bin/console lint:container
+docker compose exec -T php php bin/console lint:yaml config
+docker compose exec -T php php bin/console lint:twig templates
+docker compose exec -T php php bin/console doctrine:database:create --env=test --if-not-exists
+docker compose exec -T php php bin/phpunit
+docker compose exec -T nginx nginx -t
+docker compose exec -T nginx wget -q -O - http://127.0.0.1/api/healthz
+printf '\n'
