@@ -16,8 +16,10 @@ final class ApplicationController extends AbstractController
     #[Route('/index.html', name: 'application_index', methods: ['GET'])]
     public function __invoke(
         Filesystem $filesystem,
-        #[Autowire('%kernel.project_dir%/public/ui/index.html')] string $indexPath,
-    ): Response {
+        #[Autowire('%kernel.project_dir%/public/ui/index.html')]
+        string $indexPath
+    ): Response
+    {
         return new Response($filesystem->readFile($indexPath));
     }
 }

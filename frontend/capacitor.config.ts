@@ -1,6 +1,6 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 export default {
-  appName: 'LandLordService',
+  appName: 'Land Lord Service',
   webDir: 'dist',
 } satisfies CapacitorConfig;

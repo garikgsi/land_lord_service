@@ -12,10 +12,12 @@
 | Node.js | 26.13.1 LTS | [Node.js Downloads](https://nodejs.org/en/download/) |
 | Vue | 3.5.45 | [Vue Releases](https://github.com/vuejs/core/releases) |
 | Vue Router | 5.5.1 | [Vue Router](https://router.vuejs.org/) |
+| Pinia | 4.1.0 | [Pinia](https://pinia.vuejs.org/) |
 | Tabler | 1.7.5 | [Tabler](https://github.com/tabler/tabler) |
 | Tabler Icons | 3.52.0 | [Changelog](https://tabler.io/changelog) |
 | Vite | 8.3.8 | [Vite Releases](https://vite.dev/releases) |
 | TypeScript | 6.0.3, совместимая стабильная ветка | [TypeScript](https://github.com/microsoft/TypeScript/releases) |
+| mitt | 3.0.1 | [mitt](https://github.com/developit/mitt) |
 | Tom Select | 2.7.0 | [Tom Select](https://tom-select.js.org/) |
 | FullCalendar Vue 3 / Standard | 7.1.5 | [Vue connector](https://fullcalendar.io/docs/vue) |
 | Capacitor | 8.6.2 | [Capacitor](https://capacitorjs.com/docs) |
@@ -40,16 +42,21 @@ TypeScript 7.0.2 является стабильным, но текущий vue-
 его exports и падает при запуске. Поэтому выбран TypeScript 6.0.3, последняя
 стабильная версия совместимой ветки. Не повышать её до поддержки vue-tsc.
 
-Capacitor настроен на webDir: dist. Native Android-проект, авторизация,
-доменная модель и расчёты пока не создаются.
+Capacitor настроен на webDir: dist. Native Android-проект, доменная модель
+недвижимости и расчёты пока не создаются. Авторизация и приглашения реализованы.
+Интерфейсы frontend-расширений находятся в `frontend/src/use`: `useEvent()`
+использует mitt, `useApi()` объединяет HTTP-запросы и обработку ошибок.
+Собственные типы находятся в `frontend/src/types`, общее состояние авторизации —
+в Pinia (`frontend/src/store/auth.ts`), справочник ролей — в `store/roles.ts`.
 
-Для соединения с БД установлен Doctrine DBAL без ORM. Для служебного API
+Для соединения с БД используются Doctrine DBAL и ORM; схема меняется миграциями. Для служебного API
 `GET /api/healthz` выполняется `SELECT 1`; при ошибке подключения возвращается
 HTTP 503 без реквизитов подключения. Проверка штатного ответа и сбоя
 выполняется функциональными тестами Symfony/PHPUnit.
 
 Окружение предназначено для локальной разработки. HTTP слушает только loopback,
-БД не публикует порт на хост. Секреты находятся в игнорируемом `.env`.
+PostgreSQL опубликован только на `127.0.0.1:15432` по умолчанию
+(`POSTGRES_PORT`). Секреты находятся в игнорируемом `.env`.
 Настройки production и развёртывание будут отдельной задачей.
 
 Основной каталог: `/opt/homebrew/var/www/LandLordService`. Dockerfile и Compose

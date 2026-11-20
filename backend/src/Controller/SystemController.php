@@ -17,8 +17,10 @@ final class SystemController extends AbstractController
     public function __invoke(
         DatabaseReadiness $databaseReadiness,
         Filesystem $filesystem,
-        #[Autowire('%kernel.project_dir%/public/ui/.vite/manifest.json')] string $manifestPath,
-    ): Response {
+        #[Autowire('%kernel.project_dir%/public/ui/.vite/manifest.json')]
+        string $manifestPath
+    ): Response
+    {
         $available = $databaseReadiness->isAvailable();
 
         return $this->render('system/status.html.twig', [

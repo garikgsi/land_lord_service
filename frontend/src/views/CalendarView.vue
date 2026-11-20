@@ -25,6 +25,20 @@ const calendarOptions: CalendarOptions = {
 </script>
 
 <template>
-  <div class="page-heading"><div><div class="page-pretitle">Важные даты</div><h1>Календарь</h1><p>Сроки договоров и передачи показаний.</p></div></div>
-  <section class="card calendar-surface"><FullCalendar :options="calendarOptions" /></section>
+  <div class="page-heading">
+    <div>
+      <div class="page-pretitle">
+        Важные даты
+      </div>
+      <h1>
+        Календарь
+      </h1>
+      <p>
+        Сроки договоров и передачи показаний.
+      </p>
+    </div>
+  </div>
+  <section class="card calendar-surface">
+    <FullCalendar :options="calendarOptions" />
+  </section>
 </template>

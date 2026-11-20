@@ -1,0 +1,29 @@
+FROM composer:2 AS composer
+
+FROM node:26.13.1-bookworm-slim AS frontend
+WORKDIR /build
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --no-fund
+COPY frontend/ ./
+RUN npm run build
+
+FROM php:8.5.12-fpm-bookworm AS php
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git unzip libicu-dev libpq-dev libzip-dev \
+    && docker-php-ext-install -j"$(nproc)" intl pdo_pgsql zip bcmath \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=composer /usr/bin/composer /usr/local/bin/composer
+COPY docker/php/production.ini /usr/local/etc/php/conf.d/production.ini
+WORKDIR /app
+ENV APP_ENV=prod APP_DEBUG=0
+COPY backend/ ./
+RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts \
+    && APP_SECRET=build-only php bin/console assets:install public --env=prod --no-debug \
+    && mkdir -p var/cache var/log var/avatars \
+    && chown -R www-data:www-data var
+COPY --from=frontend /build/dist/ public/ui/
+
+FROM nginx:1.30.7-alpine AS nginx
+COPY docker/nginx/production.conf /etc/nginx/conf.d/default.conf
+COPY --from=frontend /build/dist/ /srv/frontend/
+COPY --from=php /app/public/bundles/ /srv/frontend/bundles/

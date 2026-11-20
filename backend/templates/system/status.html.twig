@@ -1,18 +1,67 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Состояние сервиса · LandLordService{% endblock %}
+{% block title %}Состояние сервиса · Land Lord Service{% endblock %}
 
 {% block body %}
     <main class="server-page">
         <div class="d-flex justify-content-between align-items-center">
-            <a class="workspace-brand" href="{{ path('application') }}">LandLord<span class="brand-service">Service</span></a>
-            <button class="btn theme-toggle" data-theme-toggle aria-label="Тёмная тема" aria-pressed="false">Сменить тему</button>
+            <a class="workspace-brand" href="{{ path('application') }}">
+                <span>
+                    Land Lord
+                    <span class="brand-service">
+                        Service
+                    </span>
+                </span>
+            </a>
+            <button
+                class="btn theme-toggle"
+                data-theme-toggle
+                aria-label="Тёмная тема"
+                aria-pressed="false"
+            >
+                Сменить тему
+            </button>
         </div>
-        <div class="page-heading"><div><div class="page-pretitle">Служебная страница</div><h1>Состояние сервиса</h1><p>Проверка доступности серверной части.</p></div></div>
-        <section class="card"><div class="card-body">
-            <div class="server-status"><span>Сервер</span><span class="badge bg-green-lt">Доступен</span></div>
-            <div class="server-status"><span>База данных</span><span class="badge {{ available ? 'bg-green-lt' : 'bg-red-lt' }}">{{ available ? 'Доступна' : 'Недоступна' }}</span></div>
-            <div class="mt-4"><a class="btn btn-primary" href="{{ path('application') }}">Открыть приложение</a><a class="btn ms-2" href="{{ path('server_status') }}">Проверить снова</a></div>
-        </div></section>
+        <div class="page-heading">
+            <div>
+                <div class="page-pretitle">
+                    Служебная страница
+                </div>
+                <h1>
+                    Состояние сервиса
+                </h1>
+                <p>
+                    Проверка доступности серверной части.
+                </p>
+            </div>
+        </div>
+        <section class="card">
+            <div class="card-body">
+                <div class="server-status">
+                    <span>
+                        Сервер
+                    </span>
+                    <span class="badge bg-green-lt">
+                        Доступен
+                    </span>
+                </div>
+                <div class="server-status">
+                    <span>
+                        База данных
+                    </span>
+                    <span class="badge {{ available ? 'bg-green-lt' : 'bg-red-lt' }}">
+                        {{ available ? 'Доступна' : 'Недоступна' }}
+                    </span>
+                </div>
+                <div class="mt-4">
+                    <a class="btn btn-primary" href="{{ path('application') }}">
+                        Открыть приложение
+                    </a>
+                    <a class="btn ms-2" href="{{ path('server_status') }}">
+                        Проверить снова
+                    </a>
+                </div>
+            </div>
+        </section>
     </main>
 {% endblock %}

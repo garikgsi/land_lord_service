@@ -14,6 +14,38 @@ const descriptions: Record<string, string> = {
 </script>
 
 <template>
-  <div class="page-heading"><div><div class="page-pretitle">Рабочее пространство</div><h1>{{ section?.title }}</h1><p>{{ descriptions[route.path] }}</p></div></div>
-  <section class="card register-empty"><div class="empty-icon-circle"><component :is="section?.icon" :size="34" stroke="1.4" /></div><h2>Здесь будут ваши данные</h2><p>Раздел подготовлен для дальнейшей работы.</p><RouterLink to="/" class="btn">Вернуться к обзору</RouterLink></section>
+  <div class="page-heading">
+    <div>
+      <div class="page-pretitle">
+        Рабочее пространство
+      </div>
+      <h1>
+        {{ section?.title }}
+      </h1>
+      <p>
+        {{ descriptions[route.path] }}
+      </p>
+    </div>
+  </div>
+  <section class="card register-empty">
+    <div class="empty-icon-circle">
+      <component
+        :is="section?.icon"
+        :size="34"
+        stroke="1.4"
+      />
+    </div>
+    <h2>
+      Здесь будут ваши данные
+    </h2>
+    <p>
+      Раздел подготовлен для дальнейшей работы.
+    </p>
+    <RouterLink
+      to="/"
+      class="btn"
+    >
+      Вернуться к обзору
+    </RouterLink>
+  </section>
 </template>

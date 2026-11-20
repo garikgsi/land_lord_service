@@ -1,0 +1,319 @@
+nelmio_api_doc:
+  documentation:
+    info:
+      title: 'Land Lord Service API'
+      version: 0.1.0
+      description: 'Реализованные API пользователей, справочника ролей, авторизации, приглашений, восстановления и аватаров. Открытой регистрации нет. Непрозрачный Bearer действует по умолчанию 8 часов; refresh отсутствует. Изменение email, ролей, блокировки или пароля отзывает сеансы и одноразовые ссылки. Администратор меняет себя и обычных пользователей; суперадминистратор также управляет администраторами. ROLE_SUPER_ADMIN закреплена миграцией и не может назначаться или сниматься. PUT передаёт полный профиль: пропущенные необязательные поля получают значения по умолчанию. Даты в ответах — ISO 8601.'
+    servers:
+      - url: /
+        description: 'Текущий сервер'
+    security:
+      - Bearer: {}
+    components:
+      securitySchemes:
+        Bearer:
+          type: http
+          scheme: bearer
+          description: 'Вставьте accessToken без префикса Bearer. Это непрозрачный токен, не JWT.'
+        InvitationToken:
+          type: apiKey
+          in: header
+          name: X-Invitation-Token
+          description: 'Токен приглашения для фото до активации. Не Bearer.'
+      schemas:
+        User:
+          type: object
+          required:
+            - id
+            - email
+            - firstName
+            - lastName
+            - roles
+            - phone
+            - position
+            - avatarUrl
+            - blocked
+            - active
+            - createdAt
+          properties:
+            id:
+              type: integer
+              minimum: 1
+            email:
+              type: string
+              format: email
+            firstName:
+              type: string
+              nullable: true
+            lastName:
+              type: string
+              nullable: true
+            roles:
+              type: array
+              items:
+                type: string
+                enum:
+                  - ROLE_ADMIN
+                  - ROLE_SUPER_ADMIN
+                  - ROLE_ACCOUNTANT
+                  - ROLE_TECHNICIAN
+                  - ROLE_LAWYER
+                  - ROLE_DIRECTOR
+            phone:
+              type: string
+              nullable: true
+            position:
+              type: string
+              nullable: true
+            avatarUrl:
+              type: string
+              nullable: true
+              description: 'Закрытый URL изображения; запрашивается с Bearer, null при отсутствии фото.'
+            blocked:
+              type: boolean
+            active:
+              type: boolean
+            createdAt:
+              type: string
+              format: date-time
+        LoginRequest:
+          type: object
+          required:
+            - email
+            - password
+          properties:
+            email:
+              type: string
+              format: email
+              example: user@example.com
+            password:
+              type: string
+              writeOnly: true
+              description: 'Пароль существующей активной незаблокированной записи.'
+        Session:
+          type: object
+          required:
+            - accessToken
+            - tokenType
+            - expiresAt
+            - user
+          properties:
+            accessToken:
+              type: string
+              description: 'Случайный непрозрачный токен. Не JWT.'
+              readOnly: true
+            tokenType:
+              type: string
+              enum:
+                - Bearer
+            expiresAt:
+              type: string
+              format: date-time
+            user:
+              $ref: '#/components/schemas/User'
+        Message:
+          type: object
+          required:
+            - message
+          properties:
+            message:
+              type: string
+        Error:
+          type: object
+          required:
+            - message
+          properties:
+            message:
+              type: string
+            errors:
+              description: 'Ошибки полей при валидации; при отсутствии могут быть опущены или представлены пустым массивом.'
+              oneOf:
+                - type: object
+                  additionalProperties:
+                    type: string
+                - type: array
+                  maxItems: 0
+                  items:
+                    type: string
+        UserCreated:
+          allOf:
+            - $ref: '#/components/schemas/User'
+            - type: object
+              required:
+                - invitationSent
+                - message
+              properties:
+                invitationSent:
+                  type: boolean
+                  description: 'false означает: пользователь создан, но письмо не отправлено; повторно создавать пользователя не нужно.'
+                message:
+                  type: string
+        RoleList:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                required: [code, label, description, assignable]
+                properties:
+                  code:
+                    type: string
+                    enum: [ROLE_ADMIN, ROLE_SUPER_ADMIN, ROLE_ACCOUNTANT, ROLE_TECHNICIAN, ROLE_LAWYER, ROLE_DIRECTOR]
+                  label:
+                    type: string
+                  description:
+                    type: string
+                  assignable:
+                    type: boolean
+                    description: 'Доступность назначения текущему пользователю; системная роль всегда false.'
+        UserList:
+          type: object
+          required:
+            - items
+            - total
+            - page
+            - pageSize
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/User'
+            total:
+              type: integer
+              minimum: 0
+            page:
+              type: integer
+              minimum: 1
+            pageSize:
+              type: integer
+              enum:
+                - 20
+        InvitationProfile:
+          type: object
+          required:
+            - email
+            - firstName
+            - lastName
+            - phone
+            - position
+            - hasAvatar
+          properties:
+            email:
+              type: string
+              format: email
+            firstName:
+              type: string
+              nullable: true
+            lastName:
+              type: string
+              nullable: true
+            phone:
+              type: string
+              nullable: true
+            position:
+              type: string
+              nullable: true
+            hasAvatar:
+              type: boolean
+        AvatarUpload:
+          type: object
+          required:
+            - avatar
+          properties:
+            avatar:
+              type: string
+              format: binary
+              description: 'JPEG, PNG или WebP, до 2 МБ, не более 4096 × 4096 пикселей.'
+        Health:
+          type: object
+          required:
+            - status
+          properties:
+            status:
+              type: string
+              enum:
+                - ok
+                - unavailable
+      responses:
+        BadRequest:
+          description: 'Неверный JSON, недействительный/истёкший одноразовый токен или некорректные данные запроса.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        Unauthorized:
+          description: 'Вход обязателен: неверные учётные данные, недействительный/истёкший Bearer, неактивная или заблокированная запись.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              schema:
+                type: string
+              description: Bearer
+        Forbidden:
+          description: 'Недостаточно прав. Администратор не изменяет другого администратора; системная роль неизменяема.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        NotFound:
+          description: 'Пользователь/аватар не найден либо параметры списка не прошли проверку.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        Conflict:
+          description: 'Email занят, запрещена самоблокировка, либо состояние пользователя не допускает операцию.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        ValidationError:
+          description: 'Нарушены ограничения полей/изображения. Поле errors содержит сообщения валидации.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        UnsupportedMediaType:
+          description: 'Ожидается application/json.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        TooManyRequests:
+          description: 'Превышено число попыток входа, восстановления или отправки приглашений.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: 'Число секунд, если заголовок предоставлен ограничителем.'
+        MailUnavailable:
+          description: 'Отправка почты не настроена или временно недоступна.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        ServerError:
+          description: 'Внутренняя ошибка. Технические сведения клиенту не раскрываются.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  html_config:
+    assets_mode: offline
+    swagger_ui_config:
+      persistAuthorization: false
+      validatorUrl: null
+      displayRequestDuration: true
+  areas:
+    path_patterns:
+      - '^/api(?:/|$)'
+  use_validation_groups: true
