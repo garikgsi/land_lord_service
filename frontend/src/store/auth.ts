@@ -16,6 +16,9 @@ export const useAuthStore = defineStore('auth', () => {
       user.value?.roles.some((role) => ['ROLE_ADMIN', 'ROLE_SUPER_ADMIN'].includes(role)) ?? false,
   );
   const isSuperAdmin = computed(() => user.value?.roles.includes('ROLE_SUPER_ADMIN') ?? false);
+  const canManageRentalRegistry = computed(
+    () => isAdmin.value || (user.value?.roles.includes('ROLE_LAWYER') ?? false),
+  );
   // Keep credentials out of Pinia state and the development tools.
   let token: string | null = null;
   let initialization: Promise<void> | undefined;
@@ -95,5 +98,5 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { user, isAdmin, isSuperAdmin, initialize, login, logout, clear };
+  return { user, isAdmin, isSuperAdmin, canManageRentalRegistry, initialize, login, logout, clear };
 });

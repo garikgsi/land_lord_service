@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
-import { IconBuildingEstate, IconMenu2, IconMoon, IconSearch, IconX } from '@tabler/icons-vue';
+import {
+  IconBooks,
+  IconChevronDown,
+  IconBuildingEstate,
+  IconMenu2,
+  IconMoon,
+  IconSearch,
+  IconX,
+} from '@tabler/icons-vue';
 import TomSelect from 'tom-select';
 import { useAuthStore } from '../store/auth';
 import { useRolesStore } from '../store/roles';
@@ -26,23 +34,44 @@ const visibleSections = computed(() =>
 );
 const route = useRoute();
 const router = useRouter();
+const showPrototypeNotice = computed(
+  () => !route.meta.rentalRegistry && !route.path.startsWith('/admin') && route.path !== '/profile',
+);
+const viewKey = computed(() => (route.meta.rentalRegistry ? route.path : undefined));
 const sidebarOpen = ref(false);
 const sidebarElement = ref<HTMLElement | null>(null);
 const sidebarToggle = ref<HTMLButtonElement | null>(null);
 const searchElement = ref<HTMLSelectElement | null>(null);
 const connection = ref<'connecting' | 'ready' | 'error'>('connecting');
-const currentSection = computed(() =>
-  sections.find(
-    (section) =>
-      section.path === route.path ||
-      (section.path !== '/' && route.path.startsWith(section.path + '/')),
-  ),
+const currentSection = computed(
+  () =>
+    sections
+      .filter(
+        (section) =>
+          section.path === route.path ||
+          (section.path !== '/' && route.path.startsWith(section.path + '/')),
+      )
+      .sort((left, right) => right.path.length - left.path.length)[0],
 );
+const primarySections = computed(() => visibleSections.value.filter((section) => !section.group));
+const catalogueSections = computed(() =>
+  visibleSections.value.filter((section) => section.group === 'catalogues'),
+);
+const cataloguesActive = computed(() => catalogueSections.value.some((section) => section.active));
+const cataloguesOpen = ref(cataloguesActive.value);
+
+function cataloguesToggled(event: Event) {
+  cataloguesOpen.value = (event.target as HTMLDetailsElement).open;
+}
+
 const connectionLabel = computed(
   () =>
     ({ ready: 'Подключение установлено', error: 'Нет подключения', connecting: 'Подключение…' })[
       connection.value
     ],
+);
+const breadcrumbParent = computed(() =>
+  currentSection.value?.group === 'catalogues' ? 'Справочники' : 'Рабочее пространство',
 );
 const breadcrumbTitle = computed(() =>
   route.path === '/profile'
@@ -99,7 +128,15 @@ async function setSidebarOpen(open: boolean) {
   else if (!desktopLayout.matches) sidebarToggle.value?.focus();
 }
 
-const removeNavigationListener = router.afterEach(() => {
+const removeNavigationListener = router.afterEach((to) => {
+  if (
+    catalogueSections.value.some(
+      (section) => to.path === section.path || to.path.startsWith(section.path + '/'),
+    )
+  ) {
+    cataloguesOpen.value = true;
+  }
+
   void setSidebarOpen(false);
 });
 
@@ -187,7 +224,7 @@ onBeforeUnmount(() => {
       </div>
       <nav class="workspace-nav">
         <RouterLink
-          v-for="section in visibleSections"
+          v-for="section in primarySections"
           :key="section.path"
           :to="section.path"
           class="workspace-nav-link"
@@ -204,6 +241,42 @@ onBeforeUnmount(() => {
             {{ section.title }}
           </span>
         </RouterLink>
+        <details
+          class="workspace-nav-group"
+          :open="cataloguesOpen"
+          @toggle="cataloguesToggled"
+        >
+          <summary
+            class="workspace-nav-link"
+            :class="{ active: cataloguesActive }"
+          >
+            <IconBooks
+              :size="21"
+              stroke="1.7"
+              aria-hidden="true"
+            />
+            <span class="flex-fill">
+              Справочники
+            </span>
+            <IconChevronDown
+              class="catalogues-chevron"
+              :size="16"
+              aria-hidden="true"
+            />
+          </summary>
+          <RouterLink
+            v-for="section in catalogueSections"
+            :key="section.path"
+            :to="section.path"
+            class="workspace-nav-link workspace-nav-child"
+            :class="{ active: section.active }"
+            :aria-current="section.ariaCurrent"
+          >
+            <span>
+              {{ section.title }}
+            </span>
+          </RouterLink>
+        </details>
       </nav>
       <div
         class="sidebar-account"
@@ -262,7 +335,7 @@ onBeforeUnmount(() => {
             />
           </button>
           <div class="header-breadcrumb">
-            Рабочее пространство
+            {{ breadcrumbParent }}
             <span>
               /
             </span>
@@ -334,7 +407,7 @@ onBeforeUnmount(() => {
           </button>
         </div>
         <div
-          v-if="!route.path.startsWith('/admin') && route.path !== '/profile'"
+          v-if="showPrototypeNotice"
           class="prototype-notice"
         >
           <span class="badge bg-blue-lt">
@@ -357,7 +430,10 @@ onBeforeUnmount(() => {
             Повторить загрузку ролей
           </button>
         </div>
-        <RouterView v-else-if="roles.loaded" />
+        <RouterView
+          v-else-if="roles.loaded"
+          :key="viewKey"
+        />
         <p
           v-else
           class="text-secondary"

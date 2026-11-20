@@ -11,6 +11,8 @@ export function configureAuthentication(router: Router, pinia: Pinia) {
     if (to.meta.requiresAuth && !auth.user)
       return { path: '/login', query: { redirect: to.fullPath } };
 
+    if (to.meta.rentalRegistryEdit && !auth.canManageRentalRegistry) return '/objects';
+
     if (to.meta.admin && !auth.isAdmin) return '/';
 
     if (to.path === '/login' && auth.user) return '/';

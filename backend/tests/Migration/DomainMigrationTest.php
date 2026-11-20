@@ -28,6 +28,8 @@ final class DomainMigrationTest extends KernelTestCase
         }
         // PostgreSQL DDL and the separate migration metadata are rolled back with the fixtures.
         $this->connection->beginTransaction();
+        $factory = static::getContainer()->get('doctrine.migrations.dependency_factory');
+        $factory->getMigrator()->migrate($factory->getMigrationPlanCalculator()->getPlanUntilVersion(new Version('DoctrineMigrations\\Version20261119171000')), new MigratorConfiguration());
     }
 
     protected function tearDown(): void
@@ -36,6 +38,21 @@ final class DomainMigrationTest extends KernelTestCase
             $this->connection->rollBack();
         }
         parent::tearDown();
+    }
+
+    public function testLandLordColorMigrationPreservesRecordsAndCanBeReapplied(): void
+    {
+        $this->migrate('DomainMigrations\\Version20261120130000');
+        $id = $this->connection->fetchOne("INSERT INTO land_lords (name) VALUES ('Colour test') RETURNING id");
+        $this->migrate('DomainMigrations\\Version20261120140000');
+        $initial = $this->connection->fetchOne('SELECT color FROM land_lords WHERE id = ?', [$id]);
+        $this->connection->executeStatement("UPDATE land_lords SET color = '#12abef' WHERE id = ?", [$id]);
+        $saved = $this->connection->fetchOne('SELECT color FROM land_lords WHERE id = ?', [$id]);
+        $this->migrate('DomainMigrations\\Version20261120130000');
+        $name = $this->connection->fetchOne('SELECT name FROM land_lords WHERE id = ?', [$id]);
+        $this->migrate('DomainMigrations\\Version20261120140000');
+
+        self::assertSame([null, '#12abef', 'Colour test', null], [$initial, $saved, $name, $this->connection->fetchOne('SELECT color FROM land_lords WHERE id = ?', [$id])]);
     }
 
     public function testMigrationsPersistLinkedRegistryRecordsWithOptionalFields(): void

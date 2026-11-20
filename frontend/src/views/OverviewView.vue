@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import DataTable from '../components/ui/DataTable.vue';
+import type { TableColumn } from '../types/components/ui/DataTable';
+import type { ContractPreviewRow } from '../types/components/ContractPreviewRow';
 import {
   IconBuildingEstate,
   IconCalendarMonth,
@@ -6,6 +9,14 @@ import {
   IconFileText,
   IconGauge,
 } from '@tabler/icons-vue';
+
+const contractRows: ContractPreviewRow[] = [];
+const contractColumns: TableColumn<ContractPreviewRow>[] = [
+  { key: 'contractNum', label: 'Договор' },
+  { key: 'objectName', label: 'Объект' },
+  { key: 'renterName', label: 'Арендатор' },
+  { key: 'expiryDate', label: 'Окончание' },
+];
 
 const summaries = [
   {
@@ -213,60 +224,38 @@ const summaries = [
   </div>
 
   <section class="card contracts-preview">
-    <div class="card-header">
-      <div>
-        <h2 class="card-title">
-          Договоры аренды
-        </h2>
-        <div class="text-secondary mt-1">
-          По объектам и датам окончания
+    <DataTable
+      :rows="contractRows"
+      :columns="contractColumns"
+      caption="Предварительное представление реестра договоров"
+    >
+      <template #header>
+        <div>
+          <h2 class="card-title">
+            Договоры аренды
+          </h2>
+          <div class="text-secondary mt-1">
+            По объектам и датам окончания
+          </div>
         </div>
-      </div>
-      <RouterLink
-        to="/contracts"
-        class="subtle-link"
-      >
-        Открыть реестр
-      </RouterLink>
-    </div>
-    <div class="table-responsive">
-      <table class="table table-vcenter card-table">
-        <caption class="visually-hidden">
-          Предварительное представление реестра договоров
-        </caption>
-        <thead>
-          <tr>
-            <th>
-              Договор
-            </th>
-            <th>
-              Объект
-            </th>
-            <th>
-              Арендатор
-            </th>
-            <th>
-              Окончание
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td
-              colspan="4"
-              class="register-placeholder"
-            >
-              <IconFileText
-                :size="23"
-                stroke="1.5"
-              />
-              <span>
-                Здесь появятся ваши договоры аренды
-              </span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+        <RouterLink
+          to="/contracts"
+          class="subtle-link"
+        >
+          Открыть реестр
+        </RouterLink>
+      </template>
+      <template #empty>
+        <div class="register-placeholder">
+          <IconFileText
+            :size="23"
+            stroke="1.5"
+          />
+          <span>
+            Здесь появятся ваши договоры аренды
+          </span>
+        </div>
+      </template>
+    </DataTable>
   </section>
 </template>

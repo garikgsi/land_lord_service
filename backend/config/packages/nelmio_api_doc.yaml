@@ -3,7 +3,7 @@ nelmio_api_doc:
     info:
       title: 'Land Lord Service API'
       version: 0.1.0
-      description: 'Реализованные API пользователей, справочника ролей, авторизации, приглашений, восстановления и аватаров. Открытой регистрации нет. Непрозрачный Bearer действует по умолчанию 8 часов; refresh отсутствует. Изменение email, ролей, блокировки или пароля отзывает сеансы и одноразовые ссылки. Администратор меняет себя и обычных пользователей; суперадминистратор также управляет администраторами. ROLE_SUPER_ADMIN закреплена миграцией и не может назначаться или сниматься. PUT передаёт полный профиль: пропущенные необязательные поля получают значения по умолчанию. Даты в ответах — ISO 8601.'
+      description: 'Реализованные API объектов, арендодателей, пользователей, справочника ролей, авторизации, приглашений, восстановления и аватаров. Открытой регистрации нет. Непрозрачный Bearer действует по умолчанию 8 часов; refresh отсутствует. Изменение email, ролей, блокировки или пароля отзывает сеансы и одноразовые ссылки. Администратор меняет себя и обычных пользователей; суперадминистратор также управляет администраторами. ROLE_SUPER_ADMIN закреплена миграцией и не может назначаться или сниматься. PUT передаёт полный профиль: пропущенные необязательные поля получают значения по умолчанию. Даты в ответах — ISO 8601.'
     servers:
       - url: /
         description: 'Текущий сервер'
@@ -21,6 +21,63 @@ nelmio_api_doc:
           name: X-Invitation-Token
           description: 'Токен приглашения для фото до активации. Не Bearer.'
       schemas:
+        LandLord:
+          type: object
+          required: [id, name, color]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            color: { type: string, nullable: true, pattern: '^#[0-9a-fA-F]{6}$', example: '#4263eb', description: 'Необязательный цвет #RRGGBB; null — Indigo. PUT без color сбрасывает выбор.' }
+        RentalObject:
+          type: object
+          required: [id, name, address, square, landLord, readingDay]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            address: { type: string }
+            square: { type: string, description: 'Точная десятичная площадь без округления', example: '100.25' }
+            landLord: { $ref: '#/components/schemas/LandLord' }
+            readingDay: { type: integer, minimum: 1, maximum: 31 }
+        LandLordInput:
+          type: object
+          required: [name]
+          properties:
+            name: { type: string, minLength: 1, description: 'Пробельное имя не допускается' }
+            color: { type: string, nullable: true, pattern: '^#[0-9a-fA-F]{6}$', example: '#4263eb', description: 'Необязательный цвет #RRGGBB; null — Indigo. PUT без color сбрасывает выбор.' }
+        RentalObjectMeterSettingsInput:
+          type: object
+          required: [readingDay]
+          properties:
+            readingDay: { type: integer, minimum: 1, maximum: 31 }
+        RentalObjectInput:
+          type: object
+          required: [name, address, square, landLordId]
+          properties:
+            name: { type: string, minLength: 1 }
+            address: { type: string, minLength: 1 }
+            square: { type: string, pattern: '^(?=.*[1-9])[0-9]+(?:\.[0-9]+)?$', example: '100.25' }
+            landLordId: { type: integer, minimum: 1 }
+            readingDay: { type: integer, minimum: 1, maximum: 31, default: 25, description: 'Значение по умолчанию задаёт сервер, SQL DEFAULT отсутствует' }
+        LandLordList:
+          type: object
+          required: [items, total, page, pageSize]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/LandLord' }
+            total: { type: integer }
+            page: { type: integer }
+            pageSize: { type: integer, example: 20 }
+        RentalObjectList:
+          type: object
+          required: [items, total, page, pageSize]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/RentalObject' }
+            total: { type: integer }
+            page: { type: integer }
+            pageSize: { type: integer, example: 20 }
         User:
           type: object
           required:
@@ -261,7 +318,7 @@ nelmio_api_doc:
               schema:
                 $ref: '#/components/schemas/Error'
         NotFound:
-          description: 'Пользователь/аватар не найден либо параметры списка не прошли проверку.'
+          description: 'Запись или аватар не найдены либо параметры списка не прошли проверку.'
           content:
             application/json:
               schema:

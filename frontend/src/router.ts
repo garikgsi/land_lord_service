@@ -15,6 +15,12 @@ import type { Section } from './types/router/Section';
 export const sections: Section[] = [
   { path: '/', title: 'Обзор', icon: IconChartBar },
   { path: '/objects', title: 'Объекты', icon: IconBuildingEstate },
+  {
+    path: '/objects/land-lords',
+    title: 'Арендодатели',
+    icon: IconBuildingEstate,
+    group: 'catalogues',
+  },
   { path: '/contracts', title: 'Договоры', icon: IconFileText },
   { path: '/meters', title: 'Приборы учёта', icon: IconGauge },
   { path: '/payments', title: 'Платежи', icon: IconCreditCard },
@@ -37,13 +43,47 @@ export const router = createRouter({
       children: [
         { path: '', component: () => import('./views/OverviewView.vue') },
         ...sections
-          .filter((section) =>
-            ['/objects', '/contracts', '/meters', '/payments'].includes(section.path),
-          )
+          .filter((section) => ['/contracts', '/meters', '/payments'].includes(section.path))
           .map((section) => ({
             path: section.path.slice(1),
             component: () => import('./views/RegisterView.vue'),
           })),
+        {
+          path: 'objects',
+          component: () => import('./views/RegistryListView.vue'),
+          props: { kind: 'objects' },
+          meta: { rentalRegistry: true, rentalRegistryEdit: false },
+        },
+        {
+          path: 'objects/new',
+          component: () => import('./views/RegistryEditView.vue'),
+          props: { kind: 'objects' },
+          meta: { rentalRegistry: true, rentalRegistryEdit: true },
+        },
+        {
+          path: 'objects/:id(\\d+)',
+          component: () => import('./views/RegistryEditView.vue'),
+          props: { kind: 'objects' },
+          meta: { rentalRegistry: true, rentalRegistryEdit: false },
+        },
+        {
+          path: 'objects/land-lords',
+          component: () => import('./views/RegistryListView.vue'),
+          props: { kind: 'land-lords' },
+          meta: { rentalRegistry: true, rentalRegistryEdit: false },
+        },
+        {
+          path: 'objects/land-lords/new',
+          component: () => import('./views/RegistryEditView.vue'),
+          props: { kind: 'land-lords' },
+          meta: { rentalRegistry: true, rentalRegistryEdit: true },
+        },
+        {
+          path: 'objects/land-lords/:id(\\d+)',
+          component: () => import('./views/RegistryEditView.vue'),
+          props: { kind: 'land-lords' },
+          meta: { rentalRegistry: true, rentalRegistryEdit: false },
+        },
         { path: 'calendar', component: () => import('./views/CalendarView.vue') },
         {
           path: 'admin/users',
