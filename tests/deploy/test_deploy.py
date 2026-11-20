@@ -25,6 +25,9 @@ class DeployTest(unittest.TestCase):
             "with open(os.environ['DEPLOY_TEST_LOG'],'a') as f: f.write(json.dumps(args)+'\\n')\n"
             "command=' '.join(args)\n"
             "stage=os.environ.get('DEPLOY_TEST_FAIL','')\n"
+            "if stage=='missing-image' and args[-1:] == ['images']: sys.exit(14)\n"
+            "if 'ps --all --quiet' in command: print('old-container')\n"
+            "if args[:2] == ['container', 'inspect']: print('/old-container sha256:removed-image example:production')\n"
             "if stage=='build' and 'build php nginx' in command: sys.exit(11)\n"
             "if stage=='backup' and 'pg_dump' in command: sys.exit(12)\n"
             "if stage=='migration' and 'doctrine:migrations:migrate' in command: sys.exit(13)\n"
@@ -61,6 +64,17 @@ class DeployTest(unittest.TestCase):
              any("--wait --wait-timeout 120 nginx" in command for command in commands),
              (self.root / "var/production/deploy.lock").exists()),
             (0, True, "fake-dump\n", "fake-avatar-archive\n", True, False)
+        )
+
+    def test_missing_old_image_does_not_abort_container_inventory(self):
+        result = self.deploy(fail="missing-image")
+        backup_dir = next((self.root / "var/production/backups").iterdir())
+        images = (backup_dir / "images.txt").read_text()
+        self.assertEqual(
+            (result.returncode, "sha256:removed-image" in images,
+             (backup_dir / "database.dump").exists(),
+             any("doctrine:migrations:migrate" in " ".join(c) for c in self.commands())),
+            (0, True, True, True)
         )
 
     def test_failed_build_never_stops_web_or_runs_migration(self):

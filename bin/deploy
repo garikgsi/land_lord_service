@@ -93,7 +93,11 @@ compose up -d --wait --wait-timeout 120 database
 
 backup_dir="var/production/backups/$(date -u +%Y%m%dT%H%M%SZ)-$$"
 mkdir "$backup_dir"
-compose images > "$backup_dir/images.txt"
+printf 'Recording existing container images...\n'
+compose ps --all --quiet > "$backup_dir/containers.txt"
+while IFS= read -r container_id; do
+    docker container inspect --format '{{.Name}} {{.Image}} {{.Config.Image}}' "$container_id"
+done < "$backup_dir/containers.txt" > "$backup_dir/images.txt"
 
 web_stopped=1
 compose stop nginx php
