@@ -49,7 +49,7 @@ final class MeterController extends AbstractController
 
     #[Route('', methods: ['POST'])]
     #[IsGranted('METER_INSTALL')]
-    #[OA\Post(description: 'Администратор и технарь могут создать и установить прибор. Собственный readingDay задаёт только администратор; технарь наследует график объекта. objectUnityProviderId — необязательная связь поставщика объекта при установке общего счётчика. Не ID глобального справочника. Для Space отсутствует.', summary: 'Meter: создать')]
+    #[OA\Post(description: 'Администратор и технарь могут создать прибор без места установки либо сразу установить его. objectId и spaceId необязательны, одновременно заполняется не больше одного. Собственный readingDay задаёт только администратор; технарь наследует график объекта. objectUnityProviderId — необязательная связь поставщика объекта при установке общего счётчика. Не ID глобального справочника. Для Space отсутствует. Необязательные model и comment относятся к самому прибору и сохраняются после снятия; пустые строки нормализуются в null.', summary: 'Meter: создать')]
     #[OA\RequestBody(required: true, content: new OA\JsonContent(ref: new Model(type: MeterInput::class)))]
     #[OA\Response(response: 201, description: 'Создано', content: new OA\JsonContent(ref: '#/components/schemas/Meter'))]
     #[OA\Response(ref: '#/components/responses/ValidationError', response: 422)]

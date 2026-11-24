@@ -145,10 +145,10 @@ final class NotificationTypeTest extends WebTestCase
         foreach ([$owner, $object, $provider, $water, $power] as $entity) { $this->em->persist($entity); }
         $this->em->flush();
 
-        return ['objectId' => $object->getId(), 'unityProviderId' => $provider->getId(), 'expiryDate' => '2027-03-31', 'unityIds' => [$water->getId(), $power->getId()]];
+        return ['objectId' => $object->getId(), 'unityProviderId' => $provider->getId(), 'expiryDate' => '2027-03-31', 'unityIds' => [$water->getId()]];
     }
 
-    public function testSupplierContractsKeepPreviousRecordsAndSupportMultipleUtilitiesAndSuspension(): void
+    public function testSupplierContractsKeepPreviousRecordsAndSupportOneUtilityAndSuspension(): void
     {
         $body = $this->supplierData();
         $lawyer = $this->user(['ROLE_LAWYER']);
@@ -161,7 +161,7 @@ final class NotificationTypeTest extends WebTestCase
         $list = json_decode($this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         $history = $this->em->getConnection()->fetchOne('SELECT is_suspended FROM unity_provider_contracts_history WHERE id = ?', [$first['id']]);
 
-        self::assertSame([201, 200, 201, 2, 2, 'suspended', false], [$created, $updated, $second, $list['total'], count($state['unities']), $state['status'], $history]);
+        self::assertSame([201, 200, 201, 2, 1, 'suspended', false], [$created, $updated, $second, $list['total'], count($state['unities']), $state['status'], $history]);
     }
 
     public function testSupplierContractsAreFilteredByBothObjectAndProvider(): void
@@ -206,28 +206,39 @@ final class NotificationTypeTest extends WebTestCase
         self::assertSame([0, 1, 0, 0, [['kind' => 'supplier_contract.expiry', 'due_date' => '2027-03-31']]], [$early, $due, $again, $off, $rows]);
     }
 
-    public function testSupplierEquipmentAndArchivedMembershipMatchCoveredUtilities(): void
+    public function testSupplierMeterSelectionIsExplicitAndRemovalPreservesHistory(): void
     {
         $body = $this->supplierData();
-        $object = $this->em->find(RentalObject::class, $body['objectId']);
-        $provider = $this->em->find(\App\Entity\UnityProvider::class, $body['unityProviderId']);
-        $meters = [];
-        foreach ($body['unityIds'] as $unityId) {
-            $unity = $this->em->find(Unity::class, $unityId);
-            $link = new \App\Entity\ObjectUnityProvider($provider, $object, $unity);
-            $meter = new Meter($unity, new \DateTimeImmutable('2020-01-01'), 0, 365, 'Meter-'.$unityId, new \DateTimeImmutable('2026-11-22'));
-            foreach ([$link, $meter, new ObjectMeter($object, $meter, null, $link)] as $entity) { $this->em->persist($entity); }
-            $meters[] = $meter;
-        }
+        $meter = new Meter($this->em->find(Unity::class, $body['unityIds'][0]), new \DateTimeImmutable('2020-01-01'), 0, 365);
+        $this->em->persist($meter);
         $this->em->flush();
-        $expectedMeter = $meters[0]->getId();
-        $lawyer = $this->user(['ROLE_LAWYER']);
-        $this->call('POST', '/api/unity-provider-contracts', $lawyer, $body);
+        $admin = $this->user(['ROLE_ADMIN']);
+        $this->call('POST', '/api/unity-provider-contracts', $admin, [...$body, 'meterId' => $meter->getId()]);
         $first = json_decode($this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
-        $this->call('PUT', '/api/unity-provider-contracts/'.$first['id'], $lawyer, [...$body, 'unityIds' => [$body['unityIds'][0]]]);
+        $this->call('PUT', '/api/unity-provider-contracts/'.$first['id'], $admin, [...$body, 'meterId' => null]);
         $second = json_decode($this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
-        $old = json_decode($this->em->getConnection()->fetchOne('SELECT unity_ids FROM unity_provider_contracts_history WHERE id = ? ORDER BY valid_to DESC LIMIT 1', [$first['id']]), true, flags: JSON_THROW_ON_ERROR);
-        self::assertSame([2, [$expectedMeter], ['2027-11-22'], $body['unityIds']], [count($first['meters']), array_column($second['meters'], 'id'), array_column($second['meters'], 'nextVerificationDate'), $old]);
+        $oldMeter = $this->em->getConnection()->fetchOne('SELECT meter_id FROM unity_provider_contracts_history WHERE id = ? ORDER BY valid_to ASC LIMIT 1', [$first['id']]);
+        $free = $this->call('GET', '/api/meters?state=uninstalled', $admin);
+        $list = json_decode($this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+
+        self::assertSame([$meter->getId(), [$meter->getId()], null, [], $meter->getId(), [$meter->getId()], 200], [$first['meterId'], array_column($first['meters'], 'id'), $second['meterId'], $second['meters'], $oldMeter, array_column($list['items'], 'id'), $free]);
+    }
+
+    public function testOccupiedMeterCannotBeSelectedForAnotherContract(): void
+    {
+        $body = $this->supplierData();
+        $meter = new Meter($this->em->find(Unity::class, $body['unityIds'][0]), new \DateTimeImmutable('2020-01-01'), 0, 365);
+        $this->em->persist($meter);
+        $this->em->flush();
+        $admin = $this->user(['ROLE_ADMIN']);
+        $this->call('POST', '/api/unity-provider-contracts', $admin, [...$body, 'meterId' => $meter->getId()]);
+        $first = json_decode($this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        $rejected = $this->call('POST', '/api/unity-provider-contracts', $admin, [...$body, 'meterId' => $meter->getId()]);
+        $this->call('PUT', '/api/meters/'.$meter->getId().'/installation', $admin, []);
+        $this->call('GET', '/api/unity-provider-contracts/'.$first['id'], $admin);
+        $detached = json_decode($this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+
+        self::assertSame([422, null, []], [$rejected, $detached['meterId'], $detached['meters']]);
     }
 
     public function testSupplierDashboardFiltersCombineBeforePagination(): void
@@ -239,19 +250,20 @@ final class NotificationTypeTest extends WebTestCase
         $water = $this->em->find(Unity::class, $body['unityIds'][0]);
         $link = new \App\Entity\ObjectUnityProvider($provider, $object, $water);
         $meter = new Meter($water, new \DateTimeImmutable('2020-01-01'), 0, 365);
-        foreach ([$link, $meter, new ObjectMeter($object, $meter, null, $link)] as $entity) {
+        foreach ([$link, $meter] as $entity) {
             $this->em->persist($entity);
         }
         $this->em->flush();
-        $this->call('POST', '/api/unity-provider-contracts', $lawyer, [...$body, 'unityIds' => [$body['unityIds'][0]], 'expiryDate' => '2099-01-01']);
+        $admin = $this->user(['ROLE_ADMIN']);
+        $this->call('POST', '/api/unity-provider-contracts', $admin, [...$body, 'meterId' => $meter->getId(), 'expiryDate' => '2099-01-01']);
         $created = json_decode($this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         $this->call('POST', '/api/unity-provider-contracts', $lawyer, [...$body, 'isSuspended' => true, 'expiryDate' => '2099-01-01']);
-        $this->call('POST', '/api/unity-provider-contracts', $lawyer, [...$body, 'unityIds' => [$body['unityIds'][1]], 'expiryDate' => '2099-01-01']);
+        $this->call('POST', '/api/unity-provider-contracts', $lawyer, [...$body, 'unityIds' => [$this->em->getRepository(Unity::class)->findOneBy(['name' => 'Power'])->getId()], 'expiryDate' => '2099-01-01']);
         $this->call('POST', '/api/unity-provider-contracts', $lawyer, [...$body, 'expiryDate' => '2000-01-01']);
         $base = '/api/unity-provider-contracts?unityProviderId='.$body['unityProviderId'];
         $this->call('GET', $base.'&status=active&unityId='.$water->getId().'&withMeters=1', $lawyer);
         $matching = json_decode($this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
-        $this->call('GET', $base.'&status=active&unityId='.$body['unityIds'][1].'&withMeters=1', $lawyer);
+        $this->call('GET', $base.'&status=active&unityId='.$this->em->getRepository(Unity::class)->findOneBy(['name' => 'Power'])->getId().'&withMeters=1', $lawyer);
         $withoutMeter = json_decode($this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         $this->call('GET', $base.'&status=finished', $lawyer);
         $finished = json_decode($this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);

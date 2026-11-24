@@ -23,22 +23,10 @@ export function objectUtilityRows(
   for (const meter of meters) {
     if (meter.installation?.type !== 'object') continue;
 
-    const providerId = meter.installation?.provider?.id;
-    let row = rows.find((item) =>
-      providerId
-        ? item.association?.id === providerId
-        : !item.association && item.unity?.id === meter.utility.id,
-    );
+    const providerId = meter.installation.provider?.id;
+    const row = rows.find((item) => item.association?.id === providerId);
 
-    if (!row) {
-      row = {
-        id: 'unassigned-' + meter.utility.id,
-        unity: meter.utility,
-        unityProvider: null,
-        meters: [],
-      };
-      rows.push(row);
-    }
+    if (!row) continue;
 
     row.meters.push({
       ...meter,
@@ -78,14 +66,32 @@ export function objectUtilityRows(
         (!contract.unities.length || contract.unities.some((unity) => unity.id === row.unity?.id)),
     );
 
-    return (matches.length ? matches : [null]).map((contract) => ({
+    const result = (matches.length ? matches : [null]).map((contract) => ({
       ...row,
       id: contract ? row.id + '-contract-' + contract.id : row.id,
       contract,
+      meters: contract ? row.meters.filter((meter) => meter.id === contract.meterId) : row.meters,
       contractNumLabel: contract?.contractNum ?? '—',
       expiryLabel: contract ? contract.expiryDate.split('-').reverse().join('.') : '—',
       statusLabel: contract ? unityProviderContractStatusLabels[contract.status] : '—',
       statusColor: contract ? unityProviderContractStatusColors[contract.status] : 'secondary',
     }));
+    const unassigned = row.meters.filter(
+      (meter) => !matches.some((contract) => contract.meterId === meter.id),
+    );
+
+    if (matches.length && unassigned.length)
+      result.push({
+        ...row,
+        id: row.id + '-unassigned',
+        meters: unassigned,
+        contract: null,
+        contractNumLabel: '—',
+        expiryLabel: '—',
+        statusLabel: '—',
+        statusColor: 'secondary',
+      });
+
+    return result;
   });
 }

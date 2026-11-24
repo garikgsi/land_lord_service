@@ -62,7 +62,7 @@ final class UnityProviderContractController extends AbstractController
 
     #[Route('/api/unity-provider-contracts', methods: ['POST'])]
     #[IsGranted('RENTAL_REGISTRY_EDIT')]
-    #[OA\Post(summary: 'Создать договор коммунального поставщика')]
+    #[OA\Post(description: 'Один поставщик, одна коммуникация в unityIds, необязательный meterId. Свободный прибор устанавливается на объекте атомарно с сохранением договора. Привязку/снятие прибора выполняют администратор и технарь с правом изменения договора.', summary: 'Создать договор коммунального поставщика')]
     #[OA\RequestBody(required: true, content: new OA\JsonContent(ref: new Model(type: UnityProviderContractInput::class)))]
     #[OA\Response(response: 201, description: 'Договор', content: new OA\JsonContent(ref: '#/components/schemas/UnityProviderContract'))]
     public function create(
@@ -71,6 +71,10 @@ final class UnityProviderContractController extends AbstractController
         UnityProviderContractService $contracts
     ): JsonResponse
     {
+        if (null !== $input->meterId) {
+            $this->denyAccessUnlessGranted('METER_INSTALL');
+        }
+
         return $this->json($contracts->present($contracts->save($input)), 201);
     }
 
@@ -87,6 +91,10 @@ final class UnityProviderContractController extends AbstractController
         UnityProviderContractService $contracts
     ): JsonResponse
     {
+        if ($input->meterId !== $contract->getMeter()?->getId() || (null !== $input->meterId && ($input->objectId !== $contract->getObject()->getId() || $input->unityProviderId !== $contract->getUnityProvider()->getId() || $input->unityIds !== [$contract->getMeter()?->getUtility()->getId()]))) {
+            $this->denyAccessUnlessGranted('METER_INSTALL');
+        }
+
         return $this->json($contracts->present($contracts->save($input, $contract)));
     }
 

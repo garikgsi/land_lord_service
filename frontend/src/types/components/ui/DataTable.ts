@@ -34,4 +34,5 @@ export interface DataTableSlots<T extends TableRecord> {
   actions?: () => unknown;
   cell?: (props: { row: T; column: TableColumn<T> }) => unknown;
   empty?: () => unknown;
+  rowActions?: (props: { row: T }) => unknown;
 }

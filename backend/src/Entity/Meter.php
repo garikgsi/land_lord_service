@@ -10,16 +10,20 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\Table(name: 'meters')]
 #[ORM\Index(name: 'idx_meters_utility_id', columns: ['utility_id'])]
-class Meter implements VersionedEntity
+class Meter
 {
     use HasDeletion;
-
-    use HasValidity;
 
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column]
     private ?int $id = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $model = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $comment = null;
 
     public function __construct(
         #[ORM\ManyToOne]
@@ -53,6 +57,26 @@ class Meter implements VersionedEntity
     public function setUtility(Unity $utility): void
     {
         $this->utility = $utility;
+    }
+
+    public function getModel(): ?string
+    {
+        return $this->model;
+    }
+
+    public function setModel(?string $model): void
+    {
+        $this->model = $model;
+    }
+
+    public function getComment(): ?string
+    {
+        return $this->comment;
+    }
+
+    public function setComment(?string $comment): void
+    {
+        $this->comment = $comment;
     }
 
     public function getCreateDate(): \DateTimeImmutable

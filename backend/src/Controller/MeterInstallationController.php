@@ -22,7 +22,7 @@ final class MeterInstallationController extends AbstractController
 {
     #[Route('/api/meters/{id}/installation', requirements: ['id' => '\\d+'], methods: ['PUT'])]
     #[IsGranted('METER_INSTALL')]
-    #[OA\Put(description: 'Администратор и технарь. Одно место: objectId или spaceId. Оба null снимают прибор, сохраняя показания. Просроченная поверка не запрещает установку. objectUnityProviderId — необязательный ID связи из списка поставщиков объекта; должен совпадать объект и тип коммуникации. Для Space не задаётся.', summary: 'Установить, перенести или снять прибор')]
+    #[OA\Put(description: 'Администратор и технарь. Одно место: objectId или spaceId. Оба null снимают прибор, сохраняя показания. requireUninstalled запрещает привязку занятого прибора под блокировкой; utilityId проверяет коммуникацию. Просроченная поверка не запрещает установку. objectUnityProviderId — необязательный ID связи из списка поставщиков объекта; должен совпадать объект и тип коммуникации. Для Space не задаётся.', summary: 'Установить, перенести или снять прибор')]
     #[OA\RequestBody(required: true, content: new OA\JsonContent(ref: new Model(type: MeterInstallationInput::class)))]
     #[OA\Response(response: 200, description: 'Сохранено', content: new OA\JsonContent(ref: '#/components/schemas/Meter'))]
     #[OA\Response(ref: '#/components/responses/ValidationError', response: 422)]

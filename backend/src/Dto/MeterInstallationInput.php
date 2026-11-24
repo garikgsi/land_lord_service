@@ -17,6 +17,9 @@ final readonly class MeterInstallationInput
         public ?string $comment = null,
         #[Assert\Positive]
         public ?int $objectUnityProviderId = null,
+        public bool $requireUninstalled = false,
+        #[Assert\Positive]
+        public ?int $utilityId = null,
     ) {
     }
 

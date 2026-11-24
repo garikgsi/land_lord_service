@@ -5,7 +5,7 @@ import { objectUtilityRows } from '../src/use/objectUtilities.ts';
 const unity = { id: 1, name: 'Water' };
 const provider = { id: 10, unityProvider: { id: 3, name: 'Supplier' }, unity };
 
-test('utility table keeps providers but excludes tenant meters and removed devices', () => {
+test('utility table keeps providers but excludes meters without a supplier, tenant meters and removed devices', () => {
   const rows = objectUtilityRows(
     [provider],
     [
@@ -17,10 +17,7 @@ test('utility table keeps providers but excludes tenant meters and removed devic
 
   assert.deepEqual(
     rows.map((row) => [row.id, row.meters.map((meter) => meter.id)]),
-    [
-      ['provider-10', []],
-      ['unassigned-1', [2]],
-    ],
+    [['provider-10', []]],
   );
 });
 
@@ -48,6 +45,7 @@ test('utility table shows every supplier contract as its own row, including fini
   const contracts = [
     {
       id: 5,
+      meterId: 1,
       unityProvider: provider.unityProvider,
       unities: [unity],
       contractNum: 'A-5',
@@ -79,12 +77,12 @@ test('utility table shows every supplier contract as its own row, including fini
     ]),
     [
       [5, 'A-5', '31.12.2026', 'Действует', [1]],
-      [4, 'A-4', '31.12.2025', 'Завершён', [1]],
+      [4, 'A-4', '31.12.2025', 'Завершён', []],
     ],
   );
 });
 
-test('contracts cover each named communication and do not hide uncontracted suppliers or meters', () => {
+test('contracts cover each communication and keep suppliers without contracts, excluding meters without suppliers', () => {
   const heat = { id: 2, name: 'Heat' };
   const contracts = [
     {
@@ -113,7 +111,6 @@ test('contracts cover each named communication and do not hide uncontracted supp
     [
       [1, 3, 8, 0],
       [1, 7, null, 0],
-      [2, null, null, 1],
       [2, 3, 8, 0],
     ],
   );

@@ -7,7 +7,7 @@ export interface ObjectUtilityGroup {
   id: string;
   association?: ObjectUnityProvider;
   unity: NamedRecord | null;
-  unityProvider: UnityProvider | null;
+  unityProvider: UnityProvider;
   meters: (Meter & { badgeColor: string })[];
 }
 

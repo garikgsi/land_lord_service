@@ -17,6 +17,8 @@ test('meter details show complete information and warnings without editable cont
       name: 'Water · A-123',
       utility: { id: 1, name: 'Water', unit: 'm3', useMeter: true },
       serialNumber: 'A-123',
+      model: 'Water model',
+      comment: 'Device note',
       createDate: '2020-01-02',
       startRead: 5,
       verificationIntervalDays: 365,
@@ -67,6 +69,8 @@ test('meter details show complete information and warnings without editable cont
       [
         [
           'A-123',
+          'Water model',
+          'Device note',
           'Water',
           'm3',
           '02.01.2020',
@@ -84,12 +88,13 @@ test('meter details show complete information and warnings without editable cont
           'Показания переданы с просрочкой',
         ].every((text) => html.includes(text)),
         /<(?:input|select|textarea|button|form)\b/.test(html),
-        ['Снят', 'Передача показаний не требуется', 'Ещё не передавались'].every((text) =>
+        ['Не установлен', 'Передача показаний не требуется', 'Ещё не передавались'].every((text) =>
           removed.includes(text),
         ),
         removed.includes('href="/spaces/4"'),
+        removed.includes('Device note'),
       ],
-      [true, false, true, false],
+      [true, false, true, false, true],
     );
   } finally {
     await server.close();

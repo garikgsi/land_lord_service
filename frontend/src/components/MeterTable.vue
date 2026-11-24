@@ -2,12 +2,16 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { IconPlus } from '@tabler/icons-vue';
+import Badge from './ui/Badge.vue';
+import MeterDetachButton from './MeterDetachButton.vue';
 import DataTable from './ui/DataTable.vue';
 import ReferenceSelect from './ui/ReferenceSelect.vue';
 import SelectInput from './ui/SelectInput.vue';
 import type { SelectOption } from '../types/components/ui/SelectInput';
 import { useAuthStore } from '../store/auth';
 import useApi from '../use/api';
+import { meterSubmissionBadge } from '../use/meterReading';
+import type { MeterTableRow } from '../types/components/MeterTable';
 import type { Meter } from '../types/models/Meter';
 import type { RegistryList } from '../types/api/Registry';
 import type { TableColumn } from '../types/components/ui/DataTable';
@@ -18,6 +22,12 @@ const auth = useAuthStore();
 const deleteEndpoint = computed(() => (auth.canManageMeters ? '/api/meters' : undefined));
 const { api, errorText } = useApi();
 const items = ref<Meter[]>([]);
+const rows = computed<MeterTableRow[]>(() =>
+  items.value.map((meter) => ({
+    ...meter,
+    readingBadge: meterSubmissionBadge(meter),
+  })),
+);
 const total = ref(0);
 const page = ref(1);
 const query = ref('');
@@ -25,7 +35,12 @@ const state = ref('all');
 const objectId = ref<number | null>(null);
 const spaceId = ref<number | null>(null);
 const utilityId = ref<number | null>(null);
-const effectiveObjectId = computed(() => props.objectId ?? objectId.value);
+const uninstalledOption = { id: -1, name: 'Не установлен' };
+const extraObjectOptions = [uninstalledOption];
+const uninstalledOnly = computed(() => !props.objectId && objectId.value === uninstalledOption.id);
+const effectiveObjectId = computed(
+  () => props.objectId ?? (uninstalledOnly.value ? null : objectId.value),
+);
 const objectOnlyOption = { id: -1, name: 'На объекте' };
 const extraSpaceOptions = [objectOnlyOption];
 const effectiveSpaceId = computed(
@@ -34,7 +49,7 @@ const effectiveSpaceId = computed(
 const installationOptions: SelectOption[] = [
   { value: 'all', label: 'Все приборы' },
   { value: 'installed', label: 'Установлены' },
-  { value: 'uninstalled', label: 'Сняты' },
+  { value: 'uninstalled', label: 'Не установлены' },
 ];
 const showObjectFilter = computed(() => !props.objectId && !props.spaceId);
 const spaceEndpoint = computed(() => '/api/objects/' + (effectiveObjectId.value ?? 0) + '/spaces');
@@ -51,26 +66,18 @@ const createRoute = computed(() => ({
   path: '/meters/new',
   query: { objectId: props.objectId, spaceId: props.spaceId },
 }));
-const columns: TableColumn<Meter>[] = [
+const columns: TableColumn<MeterTableRow>[] = [
   { key: 'name', label: 'Прибор' },
   { key: 'installation', label: 'Место установки' },
   { key: 'lastReading', label: 'Показание' },
   { key: 'nextVerificationDate', label: 'Поверка' },
-  { key: 'readingDueDate', label: 'Передача показаний' },
+  { key: 'readingDueDate', label: 'Показания' },
 ];
 let controller: AbortController | undefined;
 let timer: ReturnType<typeof setTimeout> | undefined;
 
 function rowRoute(row: Meter) {
   return '/meters/' + row.id;
-}
-
-function readingLabel(row: Meter) {
-  if (!row.installation) return 'Снят';
-
-  if (row.readingSubmittedLate) return 'Переданы с просрочкой';
-
-  return row.readingSubmitted ? 'Переданы' : 'До ' + row.readingDueDate;
 }
 
 function deleted() {
@@ -89,7 +96,7 @@ async function load() {
 
   const params = new URLSearchParams({
     query: query.value,
-    state: state.value,
+    state: uninstalledOnly.value ? 'uninstalled' : state.value,
     page: String(page.value),
   });
 
@@ -131,6 +138,10 @@ function filterChanged() {
 
 function objectChanged() {
   spaceId.value = null;
+
+  if (uninstalledOnly.value) state.value = 'uninstalled';
+  else if (state.value === 'uninstalled') state.value = 'all';
+
   filterChanged();
 }
 
@@ -173,7 +184,7 @@ defineExpose({ reload: load });
   <DataTable
     :delete-endpoint="deleteEndpoint"
     @deleted="deleted"
-    :rows="items"
+    :rows="rows"
     :columns="columns"
     caption="Приборы учёта"
     :loading="loading"
@@ -196,6 +207,7 @@ defineExpose({ reload: load });
               label="Объект"
               endpoint="/api/objects"
               placeholder="Все объекты"
+              :extra-options="extraObjectOptions"
               :required="false"
               :allow-create="false"
               :validate-on-blur="false"
@@ -252,6 +264,7 @@ defineExpose({ reload: load });
               v-model="state"
               label="Установка прибора"
               :options="installationOptions"
+              :disabled="uninstalledOnly"
               @update:model-value="filterChanged"
             />
           </div>
@@ -282,6 +295,16 @@ defineExpose({ reload: load });
         </span>
       </RouterLink>
     </template>
+    <template
+      v-if="auth.canInstallMeters"
+      #rowActions="{ row }"
+    >
+      <MeterDetachButton
+        :meter="row"
+        icon-only
+        @updated="deleted"
+      />
+    </template>
     <template #cell="{ row, column }">
       <template v-if="column.key === 'name'">
         <strong>
@@ -292,7 +315,15 @@ defineExpose({ reload: load });
         </div>
       </template>
       <template v-else-if="column.key === 'installation'">
-        {{ row.installation?.name ?? 'Снят' }}
+        <Badge
+          v-if="!row.installation"
+          color="green"
+        >
+          Не установлен
+        </Badge>
+        <template v-else>
+          {{ row.installation.name }}
+        </template>
         <div
           v-if="row.installation?.provider"
           class="text-secondary"
@@ -315,14 +346,12 @@ defineExpose({ reload: load });
         </div>
       </template>
       <template v-else-if="column.key === 'readingDueDate'">
-        <span
-          :class="{
-            'text-danger': row.readingOverdue || row.readingSubmittedLate,
-            'text-success': row.readingSubmitted && !row.readingSubmittedLate,
-          }"
+        <Badge
+          :color="row.readingBadge.color"
+          :title="row.readingBadge.title"
         >
-          {{ readingLabel(row) }}
-        </span>
+          {{ row.readingBadge.label }}
+        </Badge>
       </template>
     </template>
   </DataTable>

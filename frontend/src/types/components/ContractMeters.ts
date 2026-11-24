@@ -10,3 +10,5 @@ export interface ContractMeterRow extends Meter {
   readingLabel: string;
   badgeColor: string;
 }
+
+export type ContractMeterAction = 'readings' | 'detach';

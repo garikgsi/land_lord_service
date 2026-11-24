@@ -1143,6 +1143,21 @@ a:focus-visible {
 /* Shared Tabler Basic badge; rem sizing prevents context-dependent text sizes. */
 .project-badge {
   --tblr-badge-font-size: 0.75rem;
+  --tblr-white-fg: #000;
+  --tblr-dark-fg: #fff;
+  --tblr-blue-fg: #fff;
+  --tblr-azure-fg: #000;
+  --tblr-indigo-fg: #fff;
+  --tblr-purple-fg: #fff;
+  --tblr-pink-fg: #fff;
+  --tblr-red-fg: #fff;
+  --tblr-orange-fg: #000;
+  --tblr-yellow-fg: #000;
+  --tblr-lime-fg: #000;
+  --tblr-green-fg: #000;
+  --tblr-teal-fg: #000;
+  --tblr-cyan-fg: #000;
+  --tblr-secondary-fg: light-dark(#fff, #000);
   display: inline-flex;
   align-items: center;
   justify-content: center;

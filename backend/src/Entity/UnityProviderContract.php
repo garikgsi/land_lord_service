@@ -11,6 +11,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'unity_provider_contracts')]
+#[ORM\Index(name: 'idx_provider_contract_meter', columns: ['meter_id'])]
 #[ORM\Index(name: 'idx_unity_provider_contracts_object', columns: ['object_id'])]
 #[ORM\Index(name: 'idx_unity_provider_contracts_provider', columns: ['unity_provider_id'])]
 #[ORM\Index(name: 'idx_unity_provider_contracts_expiry', columns: ['expiry_date'])]
@@ -53,6 +54,20 @@ class UnityProviderContract implements VersionedEntity
         private bool $isSuspended = false,
     ) {
         $this->unities = new ArrayCollection();
+    }
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'meter_id', nullable: true, onDelete: 'RESTRICT')]
+    private ?Meter $meter = null;
+
+    public function getMeter(): ?Meter
+    {
+        return $this->meter;
+    }
+
+    public function setMeter(?Meter $meter): void
+    {
+        $this->meter = $meter;
     }
 
     public function getId(): ?int

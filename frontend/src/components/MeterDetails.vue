@@ -6,8 +6,9 @@ import DetailsGrid from './ui/DetailsGrid.vue';
 import type { MeterDetailsProps, MeterDetailGroup } from '../types/components/MeterDetails';
 
 const props = defineProps<MeterDetailsProps>();
-const installationLabel = computed(() => (props.meter.installation ? 'Установлен' : 'Снят'));
-const installationColor = computed(() => (props.meter.installation ? 'green' : 'secondary'));
+const installationLabel = computed(() =>
+  props.meter.installation ? 'Установлен' : 'Не установлен',
+);
 const verificationLabel = computed(() =>
   props.meter.verificationExpired ? 'Требуется поверка' : 'Поверка действительна',
 );
@@ -41,10 +42,12 @@ const groups = computed<MeterDetailGroup[]>(() => {
       title: 'Сведения о счетчике',
       fields: [
         { label: 'Коммуникация', value: meter.utility.name },
+        { label: 'Модель', value: meter.model ?? 'Не указана' },
         { label: 'Заводской номер', value: meter.serialNumber ?? 'Не указан' },
         { label: 'Единица измерения', value: meter.utility.unit ?? 'Не указана' },
         { label: 'Дата производства', value: date(meter.createDate) },
         { label: 'Начальные показания', value: reading(meter.startRead) },
+        { label: 'Комментарий', value: meter.comment ?? '—' },
       ],
     },
     {
@@ -132,7 +135,7 @@ function reading(value: number) {
     />
     <div class="meter-details-content">
       <div class="d-flex flex-wrap gap-2 mb-4">
-        <Badge :color="installationColor">
+        <Badge color="green">
           {{ installationLabel }}
         </Badge>
         <Badge :color="readingColor">

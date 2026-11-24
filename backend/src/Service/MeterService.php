@@ -23,6 +23,7 @@ final readonly class MeterService
         private MeterVerificationService $verifications,
         private MeterReadingService $readings,
         private MeterScheduleService $schedule,
+        private UnityProviderContractMeterService $contracts,
     ) {
     }
 
@@ -33,6 +34,7 @@ final readonly class MeterService
         return [
             'id' => $meter->getId(), 'name' => $meter->getUtility()->getName().' · '.($meter->getSerialNumber() ?? '#'.$meter->getId()),
             'utility' => $this->unities->present($meter->getUtility()),
+            'model' => $meter->getModel(), 'comment' => $meter->getComment(),
             'createDate' => $meter->getCreateDate()->format('Y-m-d'), 'startRead' => $meter->getStartRead(),
             'serialNumber' => $meter->getSerialNumber(), 'verificationIntervalDays' => $meter->getVerificationIntervalDays(),
             'verificationDate' => $meter->getVerificationDate()?->format('Y-m-d'), 'readingDay' => $meter->getReadingDay(),
@@ -89,8 +91,8 @@ final readonly class MeterService
             throw new InputException('utilityId', 'Для этой коммуникации установка счётчиков не предусмотрена.');
         }
 
-        if (null === $meter && (null === $input->objectId) === (null === $input->spaceId)) {
-            throw new InputException('objectId', 'Выберите одно место установки: объект или помещение.');
+        if (null !== $input->objectId && null !== $input->spaceId) {
+            throw new InputException('objectId', 'Прибор можно установить только на объекте или в помещении.');
         }
 
         return $this->em->wrapInTransaction(function () use ($input, $meter, $utility): Meter {
@@ -117,6 +119,8 @@ final readonly class MeterService
 
             $meter ??= new Meter($utility, $date, (int) $input->startRead, (int) $input->verificationIntervalDays);
             $meter->setUtility($utility);
+            $meter->setModel(null === $input->model || '' === trim($input->model) ? null : trim($input->model));
+            $meter->setComment(null === $input->comment || '' === trim($input->comment) ? null : trim($input->comment));
             $meter->setCreateDate($date);
             $meter->setStartRead((int) $input->startRead);
             $meter->setVerificationIntervalDays((int) $input->verificationIntervalDays);
@@ -126,7 +130,7 @@ final readonly class MeterService
             $this->em->flush();
 
             if ($new) {
-                $this->installations->save($meter, new MeterInstallationInput($input->objectId, $input->spaceId, $input->comment, $input->objectUnityProviderId));
+                $this->installations->save($meter, new MeterInstallationInput(objectId: $input->objectId, spaceId: $input->spaceId, objectUnityProviderId: $input->objectUnityProviderId));
             }
 
             if (null !== $input->verificationDate && $input->verificationDate !== $meter->getVerificationDate()?->format('Y-m-d')) {
@@ -141,6 +145,7 @@ final readonly class MeterService
     {
         $this->em->wrapInTransaction(function () use ($record): void {
             $this->em->refresh($record, LockMode::PESSIMISTIC_WRITE);
+            $this->contracts->release($record);
             $record->markDeleted();
             $this->em->flush();
         });

@@ -5,6 +5,8 @@ export interface MeterDraft {
   createDate: string;
   startRead: string;
   serialNumber: string;
+  model: string;
+  comment: string;
   verificationIntervalDays: string;
   verificationDate: string;
   readingDay: string;

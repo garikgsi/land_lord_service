@@ -35,6 +35,8 @@ export interface Meter extends NamedRecord {
   createDate: string;
   startRead: number;
   serialNumber: string | null;
+  model: string | null;
+  comment: string | null;
   verificationIntervalDays: number;
   verificationDate: string | null;
   nextVerificationDate: string;

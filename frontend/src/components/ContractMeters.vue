@@ -1,18 +1,25 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
-import { IconPlus, IconPencilPlus } from '@tabler/icons-vue';
+import { IconPlus } from '@tabler/icons-vue';
 import Badge from './ui/Badge.vue';
 import DataTable from './ui/DataTable.vue';
+import ActionMenu from './ui/ActionMenu.vue';
+import MeterDetachModal from './MeterDetachModal.vue';
 import MeterDetailsModal from './MeterDetailsModal.vue';
 import MeterReadingCreateModal from './MeterReadingCreateModal.vue';
 import { useAuthStore } from '../store/auth';
 import useApi from '../use/api';
 import { meterReadingDate } from '../use/meterReading';
-import type { ContractMetersProps, ContractMeterRow } from '../types/components/ContractMeters';
+import type {
+  ContractMetersProps,
+  ContractMeterRow,
+  ContractMeterAction,
+} from '../types/components/ContractMeters';
 import type { FormState } from '../types/components/FormState';
 import type { Meter } from '../types/models/Meter';
 import type { RegistryList } from '../types/api/Registry';
+import type { ActionMenuItem } from '../types/components/ui/ActionMenu';
 import type { TableColumn } from '../types/components/ui/DataTable';
 
 const props = defineProps<ContractMetersProps>();
@@ -27,7 +34,13 @@ const error = ref('');
 const selectedMeterId = ref<number | null>(null);
 const readingMeter = ref<Meter | null>(null);
 const readingModal = ref<Pick<FormState, 'saving'> | null>(null);
-const saving = computed(() => readingModal.value?.saving ?? false);
+const detachMeter = ref<Meter | null>(null);
+const detachModal = ref<Pick<FormState, 'saving'> | null>(null);
+const saving = computed(() => !!(readingModal.value?.saving || detachModal.value?.saving));
+const actions = computed<ActionMenuItem<ContractMeterAction>[]>(() => [
+  ...(auth.canEditMeterReadings ? [{ value: 'readings' as const, label: 'Показания' }] : []),
+  ...(auth.canInstallMeters ? [{ value: 'detach' as const, label: 'Снять' }] : []),
+]);
 const rows = computed<ContractMeterRow[]>(() =>
   items.value.map((meter) => ({
     ...meter,
@@ -98,6 +111,21 @@ function changePage(value: number) {
   void load();
 }
 
+function act(action: ContractMeterAction, meter: Meter) {
+  if (saving.value || loading.value) return;
+
+  if (action === 'readings' && auth.canEditMeterReadings) readingMeter.value = meter;
+  else if (action === 'detach' && auth.canInstallMeters) detachMeter.value = meter;
+}
+
+async function detached() {
+  detachMeter.value = null;
+
+  if (items.value.length === 1 && page.value > 1) page.value--;
+
+  await load();
+}
+
 async function readingCreated() {
   readingMeter.value = null;
   await load();
@@ -150,6 +178,18 @@ defineExpose({ saving });
         </span>
       </RouterLink>
     </template>
+    <template
+      v-if="actions.length"
+      #rowActions="{ row }"
+    >
+      <ActionMenu
+        label="Действия"
+        :items="actions"
+        floating
+        :disabled="saving || loading"
+        @select="act($event, row)"
+      />
+    </template>
     <template #cell="{ row, column }">
       <div
         v-if="column.key === 'name'"
@@ -163,23 +203,6 @@ defineExpose({ saving });
         >
           {{ row.name }}
         </Badge>
-        <button
-          v-if="auth.canEditMeterReadings"
-          type="button"
-          class="btn btn-sm flex-shrink-0"
-          title="Внести показания"
-          aria-label="Внести показания"
-          @click="readingMeter = row"
-        >
-          <IconPencilPlus
-            :size="16"
-            class="d-md-none"
-            aria-hidden="true"
-          />
-          <span class="d-none d-md-inline">
-            Показания
-          </span>
-        </button>
       </div>
       <template v-else>
         {{ column.value?.(row) }}
@@ -197,5 +220,12 @@ defineExpose({ saving });
     :meter="readingMeter"
     @close="readingMeter = null"
     @saved="readingCreated"
+  />
+  <MeterDetachModal
+    v-if="detachMeter"
+    ref="detachModal"
+    :meter="detachMeter"
+    @close="detachMeter = null"
+    @updated="detached"
   />
 </template>

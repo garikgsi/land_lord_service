@@ -20,7 +20,7 @@ const props = withDefaults(defineProps<DataTableProps<T>>(), {
 });
 const emit = defineEmits<{ pageChange: [page: number]; deleted: [row: T] }>();
 
-defineSlots<DataTableSlots<T>>();
+const slots = defineSlots<DataTableSlots<T>>();
 const router = useRouter();
 const route = useRoute();
 const selected = shallowRef<T | null>(null);
@@ -41,7 +41,8 @@ const visibleRows = computed(() =>
     ? props.rows.slice((currentPage.value - 1) * props.pageSize, currentPage.value * props.pageSize)
     : props.rows,
 );
-const columnCount = computed(() => props.columns.length + (props.deleteEndpoint ? 1 : 0));
+const hasRowActions = computed(() => !!(props.deleteEndpoint || slots.rowActions));
+const columnCount = computed(() => props.columns.length + (hasRowActions.value ? 1 : 0));
 const selectedName = computed(() =>
   selected.value && 'name' in selected.value
     ? String(selected.value.name)
@@ -202,7 +203,7 @@ function rowKeydown(event: KeyboardEvent, row: T) {
             {{ column.label }}
           </th>
           <th
-            v-if="deleteEndpoint"
+            v-if="hasRowActions"
             scope="col"
             class="w-1"
           >
@@ -239,24 +240,30 @@ function rowKeydown(event: KeyboardEvent, row: T) {
             </div>
           </td>
           <td
-            v-if="deleteEndpoint"
+            v-if="hasRowActions"
             data-label="Действия"
             class="text-end"
           >
-            <button
-              type="button"
-              class="btn btn-sm btn-icon text-danger"
-              v-if="!deleteAllowed || deleteAllowed(entry.record)"
-              aria-label="Удалить запись"
-              title="Удалить"
-              :disabled="loading || deleting"
-              @click.stop="requestDelete(entry.record)"
-            >
-              <IconTrash
-                :size="18"
-                aria-hidden="true"
+            <div class="d-inline-flex align-items-center gap-1 text-nowrap">
+              <slot
+                name="rowActions"
+                :row="entry.record"
               />
-            </button>
+              <button
+                type="button"
+                class="btn btn-sm btn-icon text-danger"
+                v-if="deleteEndpoint && (!deleteAllowed || deleteAllowed(entry.record))"
+                aria-label="Удалить запись"
+                title="Удалить"
+                :disabled="loading || deleting"
+                @click.stop="requestDelete(entry.record)"
+              >
+                <IconTrash
+                  :size="18"
+                  aria-hidden="true"
+                />
+              </button>
+            </div>
           </td>
         </tr>
         <tr v-if="loading">

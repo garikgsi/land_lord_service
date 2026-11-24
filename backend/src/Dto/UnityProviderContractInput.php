@@ -22,8 +22,11 @@ final readonly class UnityProviderContractInput
         #[Assert\Date]
         public ?string $contractDate = null,
         public bool $isSuspended = false,
+        #[Assert\Count(min: 1, max: 1, minMessage: 'Выберите коммуникацию.', maxMessage: 'У договора должна быть одна коммуникация.')]
         #[Assert\All([new Assert\Type('integer'), new Assert\Positive()])]
         public array $unityIds = [],
+        #[Assert\Positive]
+        public ?int $meterId = null,
     ) {
     }
 

@@ -56,6 +56,8 @@ function spaceChanged(id: number | null) {
         id="meter-object"
         v-model="model.objectId"
         label="Объект"
+        :required="false"
+        placeholder="Не установлен"
         endpoint="/api/objects"
         :initial="initialObject"
         :disabled="disabled"

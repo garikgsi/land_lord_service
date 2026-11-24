@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, ref } from 'vue';
+import { IconPlus } from '@tabler/icons-vue';
 import ReferenceInput from './ReferenceInput.vue';
 import FormModal from './FormModal.vue';
 import { useAuthStore } from '../../store/auth';
@@ -24,13 +25,19 @@ const canCreate = computed(
   () =>
     props.allowCreate &&
     !!kind.value &&
-    (['unities', 'unity-providers', 'object-provider'].includes(kind.value ?? '')
-      ? auth.canManageMeters
-      : auth.canManageRentalRegistry),
+    (kind.value === 'meters'
+      ? auth.canInstallMeters
+      : ['unities', 'unity-providers', 'object-provider'].includes(kind.value ?? '')
+        ? auth.canManageMeters
+        : auth.canManageRentalRegistry),
 );
 const initial = computed(() => (created.value?.id === model.value ? created.value : props.initial));
 const busy = computed(() => form.value?.saving ?? false);
+const creationTitle = computed(() =>
+  kind.value === 'meters' ? (form.value?.title ?? 'Новый счетчик') : 'Добавить: ' + props.label,
+);
 const components = {
+  meters: defineAsyncComponent(() => import('../MeterCreateForm.vue')),
   'land-lords': defineAsyncComponent(() => import('../LandLordForm.vue')),
   renters: defineAsyncComponent(() => import('../RenterForm.vue')),
   unities: defineAsyncComponent(() => import('../UnityForm.vue')),
@@ -41,6 +48,13 @@ const components = {
 };
 const creationComponent = computed(() => (kind.value ? components[kind.value] : null));
 const creationProps = computed(() => {
+  if (kind.value === 'meters')
+    return {
+      modal: true,
+      utilityId:
+        Number(new URLSearchParams(props.endpoint.split('?')[1]).get('utilityId')) || undefined,
+    };
+
   if (kind.value === 'unities')
     return { modal: true, meterOnly: props.endpoint.includes('meterOnly=1') };
 
@@ -89,18 +103,22 @@ function saved(record: ReferenceOption) {
     >
       <button
         type="button"
-        class="btn"
+        class="btn btn-icon btn-primary"
         :disabled="disabled || open"
         :aria-label="'Добавить: ' + label"
+        :title="'Добавить: ' + label"
         @click="open = true"
       >
-        Добавить
+        <IconPlus
+          :size="18"
+          aria-hidden="true"
+        />
       </button>
     </template>
   </ReferenceInput>
   <FormModal
     v-if="open && creationComponent"
-    :title="'Добавить: ' + label"
+    :title="creationTitle"
     wide
     :busy="busy"
     @close="close"

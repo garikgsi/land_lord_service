@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import Badge from './ui/Badge.vue';
 import { computed, onMounted, ref } from 'vue';
-import { onBeforeRouteLeave, useRouter } from 'vue-router';
-import { IconPencilPlus } from '@tabler/icons-vue';
+import { onBeforeRouteLeave, useRoute, RouterLink } from 'vue-router';
+import { IconPencilPlus, IconPlus } from '@tabler/icons-vue';
 import { objectUtilityRows } from '../use/objectUtilities';
 import type { ObjectUtilityRow } from '../types/components/ObjectUtilities';
 import type { UnityProviderContract } from '../types/models/UnityProviderContract';
@@ -11,13 +11,10 @@ import type { FormState } from '../types/components/FormState';
 import DataTable from './ui/DataTable.vue';
 import MeterDetailsModal from './MeterDetailsModal.vue';
 import MeterReadingCreateModal from './MeterReadingCreateModal.vue';
-import ActionMenu from './ui/ActionMenu.vue';
 import ReferenceSelect from './ui/ReferenceSelect.vue';
 import SelectInput from './ui/SelectInput.vue';
 import { unityProviderContractStatusLabels } from '../store/unityProviderContracts';
 import type { SelectOption } from '../types/components/ui/SelectInput';
-import FormModal from './ui/FormModal.vue';
-import ObjectUnityProviderForm from './ObjectUnityProviderForm.vue';
 import { useAuthStore } from '../store/auth';
 import useApi from '../use/api';
 import type { ObjectUnityProvidersProps } from '../types/forms/Meter';
@@ -27,7 +24,7 @@ import type { TableColumn } from '../types/components/ui/DataTable';
 
 const props = defineProps<ObjectUnityProvidersProps>();
 const auth = useAuthStore();
-const router = useRouter();
+const route = useRoute();
 const { api, errorText } = useApi();
 const providers = ref<ObjectUnityProvider[]>([]);
 const meters = ref<Meter[]>([]);
@@ -45,7 +42,7 @@ const pageSize = 20;
 const rows = computed(() =>
   objectUtilityRows(providers.value, meters.value, contracts.value).filter(
     (row) =>
-      (!providerId.value || row.unityProvider?.id === providerId.value) &&
+      (!providerId.value || row.unityProvider.id === providerId.value) &&
       (!unityId.value || row.unity?.id === unityId.value) &&
       (status.value === 'all' || row.contract?.status === status.value) &&
       (!withMeters.value || row.meters.length > 0),
@@ -57,16 +54,13 @@ const visibleRows = computed(() =>
 const filtered = computed(
   () => !!(providerId.value || unityId.value || status.value !== 'all' || withMeters.value),
 );
-const creating = ref(false);
 const selectedMeterId = ref<number | null>(null);
 const readingMeter = ref<Meter | null>(null);
 const readingModal = ref<Pick<FormState, 'saving'> | null>(null);
-const form = ref<FormState | null>(null);
-const creationBusy = computed(() => form.value?.saving ?? false);
-const addActions = computed(() => [
-  ...(auth.canManageMeters ? [{ value: 'provider', label: 'Добавить поставщика' }] : []),
-  ...(auth.canInstallMeters ? [{ value: 'meter', label: 'Добавить счетчик' }] : []),
-]);
+const createRoute = computed(() => ({
+  path: '/unity-provider-contracts/new',
+  query: { objectId: String(props.objectId), returnTo: route.fullPath },
+}));
 const loading = ref(false);
 const error = ref('');
 const endpoint = computed(() => '/api/objects/' + props.objectId + '/unity-providers');
@@ -82,13 +76,10 @@ const columns: TableColumn<ObjectUtilityRow>[] = [
 function rowRoute(row: ObjectUtilityRow) {
   if (row.contract) return '/unity-provider-contracts/' + row.contract.id;
 
-  if (row.unityProvider)
-    return {
-      path: '/unity-provider-contracts',
-      query: { objectId: String(props.objectId), unityProviderId: String(row.unityProvider.id) },
-    };
-
-  return '/meters/' + row.meters[0].id;
+  return {
+    path: '/unity-provider-contracts',
+    query: { objectId: String(props.objectId), unityProviderId: String(row.unityProvider.id) },
+  };
 }
 
 function resetFilters() {
@@ -97,28 +88,6 @@ function resetFilters() {
   status.value = 'all';
   withMeters.value = false;
   page.value = 1;
-}
-
-function add(action: string) {
-  if (action === 'provider') creating.value = true;
-  else
-    void router.push({
-      path: '/meters/new',
-      query: {
-        objectId: String(props.objectId),
-        returnTo: '/objects/' + props.objectId + '?tab=utilities',
-      },
-    });
-}
-
-function closeCreation() {
-  if (!creationBusy.value) creating.value = false;
-}
-
-async function created() {
-  creating.value = false;
-  resetFilters();
-  await load();
 }
 
 async function readingCreated() {
@@ -276,14 +245,19 @@ onMounted(load);
         </div>
       </template>
       <template
-        v-if="addActions.length"
+        v-if="auth.canManageRentalRegistry"
         #actions
       >
-        <ActionMenu
-          label="Добавить"
-          :items="addActions"
-          @select="add"
-        />
+        <RouterLink
+          :to="createRoute"
+          class="btn btn-primary list-add-button"
+          aria-label="Добавить договор поставщика"
+        >
+          <IconPlus :size="18" />
+          <span class="list-add-label">
+            Добавить
+          </span>
+        </RouterLink>
       </template>
       <template #cell="{ row, column }">
         <div
@@ -344,7 +318,7 @@ onMounted(load);
           class="d-flex align-items-center gap-2"
         >
           <span>
-            {{ row.unityProvider?.name ?? 'Без поставщика' }}
+            {{ row.unityProvider.name }}
           </span>
         </div>
         <template v-else>
@@ -353,19 +327,6 @@ onMounted(load);
       </template>
     </DataTable>
   </div>
-  <FormModal
-    v-if="creating"
-    title="Добавить поставщика на объект"
-    :busy="creationBusy"
-    @close="closeCreation"
-  >
-    <ObjectUnityProviderForm
-      ref="form"
-      :object-id="objectId"
-      @saved="created"
-      @cancel="closeCreation"
-    />
-  </FormModal>
   <MeterReadingCreateModal
     v-if="readingMeter"
     ref="readingModal"

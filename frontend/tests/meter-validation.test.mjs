@@ -35,9 +35,18 @@ test('manufacture date is required, optional verification and inherited day can 
     startRead: '0',
     verificationIntervalDays: '365',
     serialNumber: '',
+    model: '',
+    comment: '',
     verificationDate: '',
     readingDay: '',
   };
 
   assert.equal(Object.values(meterErrors(draft)).some(Boolean), false);
+});
+
+test('a meter can be created without an installation', () => {
+  assert.deepEqual(locationErrors({ type: 'object', objectId: null, spaceId: null, comment: '' }), {
+    objectId: '',
+    spaceId: '',
+  });
 });

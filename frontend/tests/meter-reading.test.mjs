@@ -5,6 +5,7 @@ import {
   meterReadingMonth,
   meterReadingBadge,
   pendingMeterReadingBadge,
+  meterSubmissionBadge,
 } from '../src/use/meterReading.ts';
 
 test('reading dates omit time and months have the requested Russian label', () => {
@@ -65,6 +66,43 @@ test('the header warns only when a current-month reading is required', () => {
         color: 'red',
         title: 'Срок передачи показаний: 25.11.2026',
       },
+    ],
+  );
+});
+
+test('registry badges use monthly submission dates and do not require readings from detached meters', () => {
+  const meter = {
+    installation: { id: 1, type: 'space' },
+    readingRequired: true,
+    readingOverdue: false,
+    readingDueDate: '2026-11-25',
+    readingSubmitted: false,
+    readingSubmittedLate: false,
+  };
+
+  assert.deepEqual(
+    [
+      meterSubmissionBadge(meter),
+      meterSubmissionBadge({ ...meter, readingOverdue: true }),
+      meterSubmissionBadge({ ...meter, readingSubmitted: true, readingRequired: false }),
+      meterSubmissionBadge({
+        ...meter,
+        readingSubmitted: true,
+        readingSubmittedLate: true,
+        readingRequired: false,
+      }),
+      meterSubmissionBadge({ ...meter, installation: null }),
+    ],
+    [
+      {
+        label: 'Передать до 25.11.2026',
+        color: 'orange',
+        title: 'Срок передачи показаний: 25.11.2026',
+      },
+      { label: 'Не передан', color: 'red', title: 'Срок передачи показаний: 25.11.2026' },
+      { label: 'Передан вовремя', color: 'green' },
+      { label: 'Передан с просрочкой', color: 'red' },
+      { label: 'Не требуется', color: 'secondary' },
     ],
   );
 });

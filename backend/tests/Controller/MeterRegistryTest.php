@@ -93,6 +93,41 @@ final class MeterRegistryTest extends WebTestCase
         return $record;
     }
 
+    public function testModelAndCommentSurviveDetachmentAndCanBeCleared(): void
+    {
+        $meter = $this->create(['model' => '  Model 123  ', 'comment' => '  Device note  ']);
+        $detached = $this->call('PUT', '/api/meters/'.$meter['id'].'/installation', []);
+        $updated = $this->call('PUT', '/api/meters/'.$meter['id'], $this->input(['objectId' => null, 'model' => ' ', 'comment' => '']));
+
+        self::assertSame(
+            ['Model 123', 'Device note', 'Model 123', 'Device note', null, null],
+            [$meter['model'], $meter['comment'], $detached['model'], $detached['comment'], $updated['model'], $updated['comment']]
+        );
+    }
+
+    public function testCreateUninstalledMeterAndAssignItLater(): void
+    {
+        $meter = $this->create(['objectId' => null]);
+        $free = $this->call('GET', '/api/meters?state=uninstalled&utilityId='.$this->unityId);
+        $installed = $this->call('PUT', '/api/meters/'.$meter['id'].'/installation', ['objectId' => $this->objectId]);
+        $after = $this->call('GET', '/api/meters?state=uninstalled&utilityId='.$this->unityId);
+
+        self::assertSame(
+            [null, false, [$meter['id']], $this->objectId, 0],
+            [$meter['installation'], $meter['readingRequired'], array_column($free['items'], 'id'), $installed['installation']['id'], $after['total']]
+        );
+    }
+
+    public function testSelectingAFreeMeterRejectsAnAlreadyInstalledMeter(): void
+    {
+        $meter = $this->create();
+        $result = $this->call('PUT', '/api/meters/'.$meter['id'].'/installation', ['spaceId' => $this->spaceId, 'utilityId' => $this->unityId, 'requireUninstalled' => true]);
+        $status = $this->client->getResponse()->getStatusCode();
+        $unchanged = $this->call('GET', '/api/meters/'.$meter['id']);
+
+        self::assertSame([422, true, 'object'], [$status, isset($result['errors']['meterId']), $unchanged['installation']['type']]);
+    }
+
     public function testCreateMoveDetachAndReinstallPreserveReadingAndWarning(): void
     {
         $meter = $this->create(['serialNumber' => '0001']);

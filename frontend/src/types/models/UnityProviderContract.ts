@@ -11,5 +11,6 @@ export interface UnityProviderContract {
   isSuspended: boolean;
   status: 'active' | 'suspended' | 'finished';
   unities: NamedRecord[];
+  meterId: number | null;
   meters: Meter[];
 }

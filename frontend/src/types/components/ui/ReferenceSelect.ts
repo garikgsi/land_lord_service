@@ -5,6 +5,7 @@ export interface ReferenceSelectProps extends ReferenceInputProps {
 }
 
 export type ReferenceCreationKind =
+  | 'meters'
   | 'land-lords'
   | 'renters'
   | 'unities'

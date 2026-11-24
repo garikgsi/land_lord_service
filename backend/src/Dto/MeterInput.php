@@ -36,6 +36,7 @@ final readonly class MeterInput
         public ?string $comment = null,
         #[Assert\Positive]
         public ?int $objectUnityProviderId = null,
+        public ?string $model = null,
     ) {
     }
 }

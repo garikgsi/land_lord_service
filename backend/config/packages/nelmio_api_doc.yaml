@@ -23,7 +23,7 @@ nelmio_api_doc:
       schemas:
         UnityProviderContract:
           type: object
-          required: [id, object, unityProvider, expiryDate, contractNum, contractDate, isSuspended, status, unities, meters]
+          required: [id, object, unityProvider, expiryDate, contractNum, contractDate, isSuspended, status, unities, meterId, meters]
           properties:
             id:
               type: integer
@@ -50,7 +50,12 @@ nelmio_api_doc:
               type: array
               items:
                 $ref: '#/components/schemas/NamedRecord'
+            meterId:
+              type: integer
+              nullable: true
+              description: Явно выбранный установленный счётчик договора.
             meters:
+              maxItems: 1
               type: array
               items:
                 $ref: '#/components/schemas/Meter'
@@ -318,6 +323,8 @@ nelmio_api_doc:
             - createDate
             - startRead
             - serialNumber
+            - model
+            - comment
             - verificationIntervalDays
             - verificationDate
             - nextVerificationDate
@@ -349,6 +356,14 @@ nelmio_api_doc:
             serialNumber:
               type: string
               nullable: true
+            model:
+              type: string
+              nullable: true
+              description: Необязательная модель счётчика.
+            comment:
+              type: string
+              nullable: true
+              description: Необязательный комментарий к прибору; сохраняется независимо от установки.
             verificationIntervalDays:
               type: integer
             verificationDate:

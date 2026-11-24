@@ -8,6 +8,7 @@ export function referenceCreationKind(endpoint: string): ReferenceCreationKind |
   const kind = path?.replace('/api/', '');
 
   return [
+    'meters',
     'land-lords',
     'renters',
     'unities',

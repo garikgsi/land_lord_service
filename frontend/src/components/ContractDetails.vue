@@ -2,7 +2,6 @@
 import { computed } from 'vue';
 import Badge from './ui/Badge.vue';
 import DetailsGrid from './ui/DetailsGrid.vue';
-import ContractFiles from './ContractFiles.vue';
 import { contractStatusColors, contractStatusLabels } from '../store/contracts';
 import { meterReadingDate } from '../use/meterReading';
 import type { ContractDetailsProps } from '../types/components/ContractDetails';
@@ -82,10 +81,4 @@ const fields = computed<DetailField[]>(() => {
     </Badge>
   </div>
   <DetailsGrid :fields="fields" />
-  <div class="mt-4">
-    <ContractFiles
-      :contract-id="contract.id"
-      readonly
-    />
-  </div>
 </template>

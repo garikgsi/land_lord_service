@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import MeterSelect from '../components/MeterSelect.vue';
 import FormBackButton from '../components/ui/FormBackButton.vue';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterLink, useRoute, onBeforeRouteLeave } from 'vue-router';
 import ReferenceSelect from '../components/ui/ReferenceSelect.vue';
 import TextInput from '../components/ui/TextInput.vue';
@@ -8,7 +9,7 @@ import useApi, { ApiError } from '../use/api';
 import useCreateNavigation, { creationReturnPath } from '../use/createNavigation';
 import { dateError } from '../use/meterValidation';
 import { useAuthStore } from '../store/auth';
-import type { RegistryList } from '../types/api/Registry';
+import type { Unity } from '../types/models/Unity';
 import type { NamedRecord } from '../types/models/NamedRecord';
 import type { UnityProviderContract } from '../types/models/UnityProviderContract';
 
@@ -31,8 +32,25 @@ const contractNum = ref('');
 const contractDate = ref('');
 const expiryDate = ref('');
 const isSuspended = ref(false);
-const unityIds = ref<number[]>([]);
-const unities = ref<NamedRecord[]>([]);
+const unityId = ref<number | null>(null);
+const meterId = ref<number | null>(null);
+const initialUnity = ref<NamedRecord>();
+const selectedUnity = ref<Unity>();
+const unityLoading = ref(false);
+const showMeter = computed(() => !!(selectedUnity.value?.useMeter || meterId.value));
+let unityController: AbortController | undefined;
+const initialMeter = computed(() =>
+  record.value?.meters.find(
+    (meter) => meter.id === meterId.value && meter.utility.id === unityId.value,
+  ),
+);
+const meterEndpointKey = computed(() => String(unityId.value));
+const meterDisabled = computed(
+  () => disabled.value || unityLoading.value || !auth.canInstallMeters,
+);
+const relationDisabled = computed(
+  () => disabled.value || (!!record.value?.meterId && !auth.canInstallMeters),
+);
 const initialObject = ref<NamedRecord>();
 const original = ref('');
 const loading = ref(true);
@@ -47,7 +65,8 @@ const payload = computed(() => ({
   contractDate: contractDate.value || null,
   expiryDate: expiryDate.value,
   isSuspended: isSuspended.value,
-  unityIds: unityIds.value,
+  unityIds: unityId.value ? [unityId.value] : [],
+  meterId: meterId.value,
 }));
 const validation = computed(
   () =>
@@ -61,9 +80,11 @@ const disabled = computed(() => !auth.canManageRentalRegistry || saving.value);
 const canSave = computed(
   () =>
     !loading.value &&
+    !unityLoading.value &&
     !disabled.value &&
     !!objectId.value &&
     !!providerId.value &&
+    !!unityId.value &&
     !validation.value &&
     !Object.values(errors.value).some(Boolean) &&
     JSON.stringify(payload.value) !== original.value,
@@ -97,14 +118,14 @@ function assign(value: UnityProviderContract) {
   contractDate.value = value.contractDate ?? '';
   expiryDate.value = value.expiryDate;
   isSuspended.value = value.isSuspended;
-  unityIds.value = value.unities.map((item) => item.id);
+  unityId.value = value.unities.length === 1 ? value.unities[0].id : null;
+  initialUnity.value = value.unities.length === 1 ? value.unities[0] : undefined;
+  meterId.value = value.meterId;
   original.value = JSON.stringify(payload.value);
 }
 
 async function load() {
   try {
-    unities.value = (await api<RegistryList<NamedRecord>>('/api/unities')).items;
-
     if (editing.value)
       assign(await api<UnityProviderContract>('/api/unity-provider-contracts/' + route.params.id));
     else {
@@ -114,10 +135,47 @@ async function load() {
       if (providerId.value)
         initialProvider.value = await api<NamedRecord>('/api/unity-providers/' + providerId.value);
     }
+
+    await loadUnity();
   } catch (e) {
     error.value = errorText(e);
   } finally {
     loading.value = false;
+  }
+}
+
+function unityChanged() {
+  meterId.value = null;
+  clearErrors();
+  void loadUnity();
+}
+
+async function loadUnity() {
+  unityController?.abort();
+  selectedUnity.value = undefined;
+
+  if (!unityId.value) {
+    unityLoading.value = false;
+
+    return;
+  }
+
+  const current = new AbortController();
+
+  unityController = current;
+  unityLoading.value = true;
+
+  try {
+    const unity = await api<Unity>('/api/unities/' + unityId.value, { signal: current.signal });
+
+    if (!current.signal.aborted) selectedUnity.value = unity;
+  } catch (e) {
+    if (!current.signal.aborted) {
+      error.value = errorText(e);
+      errors.value.unityIds = 'Не удалось загрузить коммуникацию.';
+    }
+  } finally {
+    if (!current.signal.aborted) unityLoading.value = false;
   }
 }
 
@@ -155,6 +213,7 @@ async function save() {
 
 onBeforeRouteLeave(() => !auth.user || !saving.value);
 onMounted(load);
+onBeforeUnmount(() => unityController?.abort());
 </script>
 
 <template>
@@ -208,7 +267,7 @@ onMounted(load);
             label="Объект"
             endpoint="/api/objects"
             :initial="initialObject"
-            :disabled="disabled"
+            :disabled="relationDisabled"
             :error="errors.objectId"
             @update:model-value="clearErrors"
           />
@@ -220,7 +279,7 @@ onMounted(load);
             label="Поставщик"
             endpoint="/api/unity-providers"
             :initial="initialProvider"
-            :disabled="disabled"
+            :disabled="relationDisabled"
             :error="errors.unityProviderId"
             @update:model-value="clearErrors"
           />
@@ -257,36 +316,33 @@ onMounted(load);
             :validation-error="validation"
           />
         </div>
-        <fieldset class="col-12">
-          <legend class="form-label">
-            Коммуникации
-          </legend>
-          <div class="d-flex flex-wrap gap-3">
-            <label
-              v-for="unity in unities"
-              :key="unity.id"
-              class="form-check"
-            >
-              <input
-                v-model="unityIds"
-                :value="unity.id"
-                type="checkbox"
-                class="form-check-input"
-                :disabled="disabled"
-                @change="clearErrors"
-              />
-              <span class="form-check-label">
-                {{ unity.name }}
-              </span>
-            </label>
-          </div>
-          <div
-            v-if="errors.unityIds"
-            class="invalid-feedback d-block"
-          >
-            {{ errors.unityIds }}
-          </div>
-        </fieldset>
+        <div class="col-12 col-md-6">
+          <ReferenceSelect
+            id="supplier-contract-unity"
+            v-model="unityId"
+            label="Коммуникация"
+            endpoint="/api/unities"
+            :initial="initialUnity"
+            :disabled="relationDisabled"
+            :error="errors.unityIds"
+            @update:model-value="unityChanged"
+          />
+        </div>
+        <div
+          v-if="showMeter"
+          class="col-12 col-md-6"
+        >
+          <MeterSelect
+            :key="meterEndpointKey"
+            id="supplier-contract-meter"
+            v-model="meterId"
+            :utility-id="unityId"
+            :initial="initialMeter"
+            :disabled="meterDisabled"
+            :error="errors.meterId"
+            @update:model-value="clearErrors"
+          />
+        </div>
         <div class="col-12">
           <label class="form-check">
             <input

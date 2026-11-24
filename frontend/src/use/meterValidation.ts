@@ -34,7 +34,7 @@ export function meterErrors(draft: MeterDraft): Record<string, string> {
 
 export function locationErrors(draft: MeterLocationDraft): Record<string, string> {
   return {
-    objectId: draft.objectId ? '' : 'Выберите объект.',
+    objectId: '',
     spaceId: draft.type === 'space' && !draft.spaceId ? 'Выберите помещение.' : '',
   };
 }

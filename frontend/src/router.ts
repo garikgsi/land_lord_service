@@ -224,7 +224,7 @@ export const router = createRouter({
         },
         {
           path: 'meters/new',
-          component: () => import('./views/MeterEditView.vue'),
+          component: () => import('./views/MeterCreateView.vue'),
           meta: { meterRegistry: true, meterInstall: true },
         },
         {

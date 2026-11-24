@@ -1,5 +1,5 @@
 import type { Meter, MeterReadingSubmissionStatus } from '../types/models/Meter';
-import type { MeterReadingBadge } from '../types/use/MeterReading';
+import type { MeterReadingBadge, MeterSubmissionState } from '../types/use/MeterReading';
 
 export function meterReadingDate(value: string): string {
   return value.slice(0, 10).split('-').reverse().join('.');
@@ -37,4 +37,14 @@ export function pendingMeterReadingBadge(
     color: meter.readingOverdue ? 'red' : 'orange',
     title: 'Срок передачи показаний: ' + deadline,
   };
+}
+
+export function meterSubmissionBadge(meter: MeterSubmissionState): MeterReadingBadge {
+  if (!meter.installation) return { label: 'Не требуется', color: 'secondary' };
+
+  if (meter.readingSubmittedLate) return meterReadingBadge('late');
+
+  if (meter.readingSubmitted) return meterReadingBadge('on_time');
+
+  return pendingMeterReadingBadge(meter) ?? { label: '—', color: null };
 }

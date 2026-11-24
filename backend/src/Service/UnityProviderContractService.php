@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Dto\MeterInstallationInput;
+use App\Dto\ObjectUnityProviderInput;
 use App\Dto\UnityProviderContractInput;
 use App\Dto\UnityProviderContractListQuery;
 use App\Entity\Meter;
@@ -13,23 +15,22 @@ use App\Entity\Unity;
 use App\Entity\UnityProvider;
 use App\Entity\UnityProviderContract;
 use App\Exception\InputException;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class UnityProviderContractService
 {
-    public function __construct(private EntityManagerInterface $em, private MeterService $meters)
+    public function __construct(private EntityManagerInterface $em, private MeterService $meters, private MeterInstallationService $installations, private ObjectUnityProviderService $providers)
     {
     }
 
     public function present(UnityProviderContract $contract): array
     {
-        $query = $this->em->getRepository(Meter::class)->createQueryBuilder('m')
-            ->join(ObjectMeter::class, 'om', 'WITH', 'om.meter = m')->join('om.objectUnityProvider', 'op')
-            ->andWhere('op.object = :object AND op.unityProvider = :provider')
-            ->setParameter('object', $contract->getObject())->setParameter('provider', $contract->getUnityProvider());
         $unities = $contract->getUnities()->toArray();
-        if ([] !== $unities) {
-            $query->andWhere('m.utility IN (:unities)')->setParameter('unities', $unities);
+        $meter = $contract->getMeter();
+        $installed = null === $meter || $meter->isDeleted() ? null : $this->meters->present($meter);
+        if (null !== $installed && ('object' !== ($installed['installation']['type'] ?? null) || $installed['installation']['object']['id'] !== $contract->getObject()->getId() || ($installed['installation']['provider']['unityProvider']['id'] ?? null) !== $contract->getUnityProvider()->getId())) {
+            $installed = null;
         }
         $status = $contract->getExpiryDate() < new \DateTimeImmutable('today') ? 'finished' : ($contract->isSuspended() ? 'suspended' : 'active');
 
@@ -40,7 +41,8 @@ final readonly class UnityProviderContractService
             'object' => ['id' => $contract->getObject()->getId(), 'name' => $contract->getObject()->getName()],
             'unityProvider' => ['id' => $contract->getUnityProvider()->getId(), 'name' => $contract->getUnityProvider()->getName()],
             'unities' => array_map(static fn (Unity $unity): array => ['id' => $unity->getId(), 'name' => $unity->getName()], $unities),
-            'meters' => array_map($this->meters->present(...), $query->orderBy('m.id', 'DESC')->getQuery()->getResult()),
+            'meterId' => $installed['id'] ?? null,
+            'meters' => null === $installed ? [] : [$installed],
         ];
     }
 
@@ -65,7 +67,7 @@ final readonly class UnityProviderContractService
             }
         }
         if ($input->withMeters) {
-            $query->andWhere('EXISTS (SELECT om.id FROM '.ObjectMeter::class.' om JOIN om.meter m JOIN om.objectUnityProvider op WHERE op.object = c.object AND op.unityProvider = c.unityProvider AND (c.unities IS EMPTY OR m.utility MEMBER OF c.unities)'.(null !== $input->unityId ? ' AND m.utility = :unity' : '').')');
+            $query->andWhere('c.meter IS NOT NULL')->andWhere('EXISTS (SELECT om.id FROM '.ObjectMeter::class.' om JOIN om.meter selected JOIN om.objectUnityProvider op WHERE om.meter = c.meter AND om.object = c.object AND op.unityProvider = c.unityProvider AND selected.isDeleted = false)');
         }
         if ('' !== trim($input->query)) {
             $query->andWhere('LOWER(o.name) LIKE :query OR LOWER(p.name) LIKE :query OR LOWER(c.contractNum) LIKE :query')->setParameter('query', '%'.mb_strtolower(trim($input->query)).'%');
@@ -81,14 +83,40 @@ final readonly class UnityProviderContractService
     {
         $object = $this->em->getRepository(RentalObject::class)->find($input->objectId) ?? throw new InputException('objectId', 'Объект не найден.');
         $provider = $this->em->getRepository(UnityProvider::class)->find($input->unityProviderId) ?? throw new InputException('unityProviderId', 'Поставщик не найден.');
+        if (1 !== count($input->unityIds)) {
+            throw new InputException('unityIds', 'Выберите одну коммуникацию.');
+        }
         $unities = [];
         foreach (array_unique($input->unityIds) as $id) {
             $unities[] = $this->em->getRepository(Unity::class)->find($id) ?? throw new InputException('unityIds', 'Коммуникация не найдена.');
         }
 
         return $this->em->wrapInTransaction(function () use ($input, $contract, $object, $provider, $unities): UnityProviderContract {
+            $this->em->refresh($object, LockMode::PESSIMISTIC_WRITE);
+            if (null !== $contract) {
+                $this->em->refresh($contract, LockMode::PESSIMISTIC_WRITE);
+            }
             $record = $contract ?? new UnityProviderContract($object, $provider, new \DateTimeImmutable($input->expiryDate));
+            $meter = null === $input->meterId ? null : ($this->em->getRepository(Meter::class)->find($input->meterId) ?? throw new InputException('meterId', 'Счётчик не найден.'));
+            if (null !== $meter) {
+                $this->em->refresh($meter, LockMode::PESSIMISTIC_WRITE);
+                if ($meter->getUtility()->getId() !== $unities[0]->getId()) {
+                    throw new InputException('meterId', 'Выберите счётчик указанной коммуникации.');
+                }
+                if (null !== $this->installations->present($meter) && $record->getMeter()?->getId() !== $meter->getId()) {
+                    throw new InputException('meterId', 'Счётчик уже установлен. Выберите свободный прибор.');
+                }
+            }
+            $previous = $record->getMeter();
+            if (null !== $previous && $previous !== $meter) {
+                $this->installations->save($previous, new MeterInstallationInput());
+            }
+            $link = $this->providers->add($object, new ObjectUnityProviderInput($provider->getId(), $unities[0]->getId()));
+            if (null !== $meter) {
+                $this->installations->save($meter, new MeterInstallationInput(objectId: $object->getId(), objectUnityProviderId: $link->getId()));
+            }
             $record->configure($object, $provider, new \DateTimeImmutable($input->expiryDate), null === $input->contractNum ? null : (trim($input->contractNum) ?: null), null === $input->contractDate || '' === trim($input->contractDate) ? null : new \DateTimeImmutable($input->contractDate), $input->isSuspended, $unities);
+            $record->setMeter($meter);
             $this->em->persist($record);
             $this->em->flush();
 
@@ -99,7 +127,7 @@ final readonly class UnityProviderContractService
     public function remove(UnityProviderContract $record): void
     {
         $this->em->wrapInTransaction(function () use ($record): void {
-            $this->em->refresh($record, \Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
+            $this->em->refresh($record, LockMode::PESSIMISTIC_WRITE);
             $record->markDeleted();
             $this->em->flush();
         });

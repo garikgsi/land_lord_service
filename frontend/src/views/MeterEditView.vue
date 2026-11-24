@@ -5,21 +5,15 @@ import Badge from '../components/ui/Badge.vue';
 import useCreateNavigation, { creationReturnPath } from '../use/createNavigation';
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
-import TextInput from '../components/ui/TextInput.vue';
-import IntInput from '../components/ui/IntInput.vue';
-import VerificationIntervalInput from '../components/ui/VerificationIntervalInput.vue';
-import ReferenceSelect from '../components/ui/ReferenceSelect.vue';
-import MeterLocationFields from '../components/MeterLocationFields.vue';
+import MeterFields from '../components/MeterFields.vue';
 import MeterInstallation from '../components/MeterInstallation.vue';
 import MeterRecords from '../components/MeterRecords.vue';
 import MeterReadingCreateModal from '../components/MeterReadingCreateModal.vue';
 import { useAuthStore } from '../store/auth';
 import useApi, { ApiError } from '../use/api';
-import { meterErrors, locationErrors } from '../use/meterValidation';
+import { meterErrors } from '../use/meterValidation';
 import type { Meter } from '../types/models/Meter';
-import type { RentalObject } from '../types/models/RentalObject';
-import type { Space } from '../types/models/Space';
-import type { MeterDraft, MeterLocationDraft } from '../types/forms/Meter';
+import type { MeterDraft } from '../types/forms/Meter';
 
 const { returnAfterCreate, returnAfterSave } = useCreateNavigation();
 const route = useRoute();
@@ -30,23 +24,16 @@ const record = ref<Meter>();
 const readingOpen = ref(false);
 const installation = ref<InstanceType<typeof MeterInstallation> | null>(null);
 const readingModal = ref<Pick<FormState, 'saving'> | null>(null);
-const initialObject = ref<RentalObject | Space['object']>();
-const initialSpace = ref<Space>();
 const draft = ref<MeterDraft>({
   utilityId: null,
   createDate: '',
   startRead: '',
   serialNumber: '',
+  model: '',
+  comment: '',
   verificationIntervalDays: '',
   verificationDate: '',
   readingDay: '',
-});
-const location = ref<MeterLocationDraft>({
-  type: 'object',
-  objectId: null,
-  spaceId: null,
-  objectUnityProviderId: null,
-  comment: '',
 });
 const original = ref('');
 const loading = ref(true);
@@ -54,9 +41,6 @@ const saving = ref(false);
 const error = ref('');
 const errors = ref<Record<string, string>>({});
 const notice = ref('');
-const fixedLocation = computed(
-  () => !editing.value && !!(route.query.objectId || route.query.spaceId),
-);
 const editing = computed(() => !!route.params.id);
 const backRoute = computed(() => creationReturnPath(route.query.returnTo, '/meters'));
 const title = computed(() =>
@@ -67,27 +51,17 @@ const tab = computed(() =>
     ? String(route.query.tab)
     : 'main',
 );
-const validation = computed(() => ({
-  ...meterErrors(draft.value),
-  ...(editing.value ? {} : locationErrors(location.value)),
-}));
+const validation = computed(() => meterErrors(draft.value));
 const payload = computed(() => ({
   utilityId: draft.value.utilityId,
   createDate: draft.value.createDate,
   startRead: Number(draft.value.startRead),
   serialNumber: draft.value.serialNumber.trim() || null,
+  model: draft.value.model.trim() || null,
+  comment: draft.value.comment.trim() || null,
   verificationIntervalDays: Number(draft.value.verificationIntervalDays),
   verificationDate: draft.value.verificationDate || null,
   readingDay: draft.value.readingDay ? Number(draft.value.readingDay) : null,
-  ...(!editing.value
-    ? {
-        objectId: location.value.type === 'object' ? location.value.objectId : null,
-        spaceId: location.value.type === 'space' ? location.value.spaceId : null,
-        comment: location.value.comment.trim() || null,
-        objectUnityProviderId:
-          location.value.type === 'object' ? location.value.objectUnityProviderId : null,
-      }
-    : {}),
 }));
 const canEdit = computed(() => (editing.value ? auth.canManageMeters : auth.canInstallMeters));
 const showReadingDay = computed(() => editing.value || auth.canManageMeters);
@@ -131,6 +105,8 @@ function assign(recordValue: Meter) {
     createDate: recordValue.createDate,
     startRead: String(recordValue.startRead),
     serialNumber: recordValue.serialNumber ?? '',
+    model: recordValue.model ?? '',
+    comment: recordValue.comment ?? '',
     verificationIntervalDays: String(recordValue.verificationIntervalDays),
     verificationDate: recordValue.verificationDate ?? '',
     readingDay: recordValue.readingDay === null ? '' : String(recordValue.readingDay),
@@ -145,19 +121,6 @@ async function load() {
   try {
     if (editing.value) {
       assign(await api<Meter>('/api/meters/' + route.params.id));
-    } else if (route.query.spaceId) {
-      initialSpace.value = await api<Space>('/api/spaces/' + route.query.spaceId);
-      initialObject.value = initialSpace.value.object;
-      location.value = {
-        type: 'space',
-        objectId: initialSpace.value.object.id,
-        spaceId: initialSpace.value.id,
-        objectUnityProviderId: null,
-        comment: '',
-      };
-    } else if (route.query.objectId) {
-      initialObject.value = await api<RentalObject>('/api/objects/' + route.query.objectId);
-      location.value.objectId = initialObject.value.id;
     }
   } catch (e) {
     error.value = errorText(e);
@@ -167,7 +130,6 @@ async function load() {
 }
 
 function utilityChanged() {
-  location.value.objectUnityProviderId = null;
   clearErrors();
 }
 
@@ -291,6 +253,12 @@ onMounted(load);
     >
       Помещение: {{ record.installation.name }}
     </Badge>
+    <Badge
+      v-if="!record.installation"
+      color="green"
+    >
+      Не установлен
+    </Badge>
     <Badge>
       Показания: {{ readingDateLabel }}
     </Badge>
@@ -333,106 +301,18 @@ onMounted(load);
         @input="clearErrors"
         @change="clearErrors"
       >
-        <div class="row g-3">
-          <div class="col-12 col-md-6 col-xl-4">
-            <ReferenceSelect
-              id="meter-utility"
-              v-model="draft.utilityId"
-              label="Коммуникация"
-              endpoint="/api/unities?meterOnly=1"
-              :initial="record?.utility"
-              :disabled="disabled"
-              :error="errors.utilityId"
-              @update:model-value="utilityChanged"
-            />
-          </div>
-          <div class="col-12 col-md-6 col-xl-4">
-            <TextInput
-              id="meter-serial"
-              v-model="draft.serialNumber"
-              label="Заводской номер"
-              :readonly="disabled"
-              :error="errors.serialNumber"
-            />
-          </div>
-          <div class="col-12 col-md-6 col-xl-4">
-            <TextInput
-              id="meter-production"
-              v-model="draft.createDate"
-              type="date"
-              label="Дата производства"
-              required
-              :readonly="disabled"
-              :error="errors.createDate"
-              :validation-error="validation.createDate"
-            />
-          </div>
-          <div class="col-12 col-md-6 col-xl-4">
-            <IntInput
-              id="meter-initial"
-              v-model="draft.startRead"
-              label="Начальные показания"
-              required
-              :readonly="disabled"
-              :error="errors.startRead"
-              :validation-error="validation.startRead"
-            />
-          </div>
-          <div class="col-12 col-md-6 col-xl-4">
-            <VerificationIntervalInput
-              id="meter-interval"
-              v-model="draft.verificationIntervalDays"
-              label="Межповерочный интервал"
-              required
-              :readonly="disabled"
-              :error="errors.verificationIntervalDays"
-              :validation-error="validation.verificationIntervalDays"
-              @update:model-value="clearErrors"
-            />
-          </div>
-          <div class="col-12 col-md-6 col-xl-4">
-            <TextInput
-              id="meter-last-verification"
-              v-model="draft.verificationDate"
-              type="date"
-              label="Последняя поверка"
-              :readonly="disabled || editing"
-              :error="errors.verificationDate"
-              :validation-error="validation.verificationDate"
-            />
-          </div>
-          <div
-            v-if="showReadingDay"
-            class="col-12 col-md-6 col-xl-4"
-          >
-            <IntInput
-              id="meter-reading-day"
-              v-model="draft.readingDay"
-              label="Собственный день передачи показаний"
-              :placeholder="readingDayPlaceholder"
-              :readonly="disabled"
-              :error="errors.readingDay"
-              :validation-error="validation.readingDay"
-            />
-          </div>
-        </div>
-        <div
-          v-if="!editing"
-          class="mt-4"
-        >
-          <h2 class="card-title">
-            Место установки
-          </h2>
-          <MeterLocationFields
-            :fixed-location="fixedLocation"
-            v-model="location"
-            :initial-object="initialObject"
-            :initial-space="initialSpace"
-            :utility-id="draft.utilityId"
-            :disabled="disabled"
-            :errors="errors"
-          />
-        </div>
+        <MeterFields
+          v-model="draft"
+          :initial-utility="record?.utility"
+          :disabled="disabled"
+          :readonly-verification="editing"
+          :show-reading-day="showReadingDay"
+          :reading-day-placeholder="readingDayPlaceholder"
+          :errors="errors"
+          :validation="validation"
+          @utility-changed="utilityChanged"
+          @changed="clearErrors"
+        />
         <div class="d-flex flex-wrap gap-2 mt-3">
           <button
             v-if="canEdit"
