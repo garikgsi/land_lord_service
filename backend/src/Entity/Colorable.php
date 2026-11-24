@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-/** An entity with an optional user-selected display colour. */
+/** A stable discriminator and persisted ID for the polymorphic display colour. */
 interface Colorable
 {
-    public function getColor(): ?string;
+    public static function colorType(): string;
 
-    public function setColor(?string $color): void;
+    public function getId(): ?int;
 }

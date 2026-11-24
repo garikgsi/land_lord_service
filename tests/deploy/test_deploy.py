@@ -61,10 +61,20 @@ class DeployTest(unittest.TestCase):
             (result.returncode, backup < migration,
              (backup_dir / "database.dump").read_text(),
              (backup_dir / "avatars.tar.gz").read_text(),
+             (backup_dir / "contract-files.tar.gz").read_text(),
              any("--wait --wait-timeout 120 nginx" in command for command in commands),
              (self.root / "var/production/deploy.lock").exists()),
-            (0, True, "fake-dump\n", "fake-avatar-archive\n", True, False)
+            (0, True, "fake-dump\n", "fake-avatar-archive\n", "fake-avatar-archive\n", True, False)
         )
+
+    def test_notification_worker_stops_before_backup_and_starts_after_migrations(self):
+        result = self.deploy()
+        commands = [" ".join(command) for command in self.commands()]
+        stop = next(i for i, c in enumerate(commands) if "stop nginx php notifications" in c)
+        backup = next(i for i, c in enumerate(commands) if "pg_dump" in c)
+        migration = next(i for i, c in enumerate(commands) if "doctrine:migrations:migrate" in c)
+        start = next(i for i, c in enumerate(commands) if "--force-recreate notifications" in c)
+        self.assertEqual((result.returncode, stop < backup < migration < start), (0, True))
 
     def test_missing_old_image_does_not_abort_container_inventory(self):
         result = self.deploy(fail="missing-image")

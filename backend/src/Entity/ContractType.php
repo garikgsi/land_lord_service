@@ -9,8 +9,12 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'contract_types')]
-class ContractType
+class ContractType implements VersionedEntity
 {
+    use HasDeletion;
+
+    use HasValidity;
+
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column]

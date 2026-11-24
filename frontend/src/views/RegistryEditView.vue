@@ -1,13 +1,17 @@
 <script setup lang="ts">
+import FormBackButton from '../components/ui/FormBackButton.vue';
+import useCreateNavigation from '../use/createNavigation';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { RouterLink, onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import IntInput from '../components/ui/IntInput.vue';
 import LandLordForm from '../components/LandLordForm.vue';
-import LandLordCreateModal from '../components/LandLordCreateModal.vue';
+import RentalObjectContracts from '../components/RentalObjectContracts.vue';
+import RentalObjectOverview from '../components/RentalObjectOverview.vue';
+import ObjectUnityProviders from '../components/ObjectUnityProviders.vue';
 import RentalObjectMeterSettings from '../components/RentalObjectMeterSettings.vue';
 import type { FormState } from '../types/components/FormState';
 import TextInput from '../components/ui/TextInput.vue';
-import ReferenceInput from '../components/ui/ReferenceInput.vue';
+import ReferenceSelect from '../components/ui/ReferenceSelect.vue';
 import { useAuthStore } from '../store/auth';
 import useApi, { ApiError } from '../use/api';
 import useRentalObjectValidation from '../use/rentalObjectValidation';
@@ -17,6 +21,7 @@ import type { RentalObject } from '../types/models/RentalObject';
 import type { LandLord } from '../types/models/LandLord';
 import type { RegistryProps, RentalObjectTab } from '../types/components/Registry';
 
+const { returnAfterCreate, returnAfterSave } = useCreateNavigation();
 const props = defineProps<RegistryProps>();
 const auth = useAuthStore();
 const route = useRoute();
@@ -25,11 +30,21 @@ const { api, errorText } = useApi();
 const validation = useRentalObjectValidation();
 const objects = computed(() => props.kind === 'objects');
 const creating = computed(() => !route.params.id);
-const activeTab = ref<RentalObjectTab>('main');
+const tabOrder: RentalObjectTab[] = ['main', 'spaces', 'utilities'];
+const activeTab = ref<RentalObjectTab>(
+  (['meters', 'providers'].includes(String(route.query.tab))
+    ? 'utilities'
+    : tabOrder.find((tab) => tab === route.query.tab)) ?? 'main',
+);
 const mainTabButton = ref<HTMLButtonElement | null>(null);
 const metersTabButton = ref<HTMLButtonElement | null>(null);
+const spacesTabButton = ref<HTMLButtonElement | null>(null);
+const objectContracts = ref<InstanceType<typeof RentalObjectContracts> | null>(null);
+const objectOverview = ref<InstanceType<typeof RentalObjectOverview> | null>(null);
+const spacesTabActive = computed(() => activeTab.value === 'spaces');
+const spacesTabIndex = computed(() => (spacesTabActive.value ? 0 : -1));
 const mainTabActive = computed(() => creating.value || activeTab.value === 'main');
-const metersTabActive = computed(() => activeTab.value === 'meters');
+const metersTabActive = computed(() => activeTab.value === 'utilities');
 const mainPanelRole = computed(() => (creating.value ? undefined : 'tabpanel'));
 const mainPanelLabel = computed(() => (creating.value ? undefined : 'object-main-tab'));
 const mainTabIndex = computed(() => (mainTabActive.value ? 0 : -1));
@@ -40,7 +55,7 @@ const title = computed(() =>
     ? objects.value
       ? 'Добавить объект'
       : 'Добавить арендодателя'
-    : (record.value?.name ?? 'Загрузка…'),
+    : (objects.value ? 'Объект: ' : '') + (record.value?.name ?? 'Загрузка…'),
 );
 const saveLabel = computed(() =>
   saving.value ? 'Сохраняем…' : creating.value ? 'Создать' : 'Сохранить',
@@ -60,8 +75,6 @@ const notice = ref('');
 const saving = ref(false);
 const original = ref('');
 const serverErrors = ref<ApiErrors>({});
-const modalOpen = ref(false);
-const createdLandLord = ref<LandLord | null>(null);
 const landLordForm = ref<FormState | null>(null);
 const meterSettings = ref<FormState | null>(null);
 const landLordRecord = computed(() =>
@@ -70,10 +83,8 @@ const landLordRecord = computed(() =>
 const rentalObjectRecord = computed(() =>
   record.value && 'address' in record.value ? record.value : undefined,
 );
-const initialLandLord = computed(
-  () =>
-    createdLandLord.value ??
-    (record.value && 'landLord' in record.value ? record.value.landLord : undefined),
+const initialLandLord = computed(() =>
+  record.value && 'landLord' in record.value ? record.value.landLord : undefined,
 );
 const payload = computed(() =>
   objects.value
@@ -100,29 +111,37 @@ const canSave = computed(
     dirty.value &&
     !loading.value &&
     !saving.value &&
-    !modalOpen.value &&
     !meterSettings.value?.saving &&
     !Object.keys(validationErrors.value).length &&
     !Object.keys(serverErrors.value).length,
 );
 let controller: AbortController | undefined;
 
+async function selectTab(tab: RentalObjectTab) {
+  activeTab.value = tab;
+
+  await router.replace({ query: { ...route.query, tab } });
+
+  if (tab === 'spaces') await objectContracts.value?.reload();
+
+  if (tab === 'main') await objectOverview.value?.reload();
+}
+
 async function tabKeydown(event: KeyboardEvent) {
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
 
   event.preventDefault();
-  activeTab.value =
+  const current = tabOrder.indexOf(activeTab.value);
+  const index =
     event.key === 'Home'
-      ? 'main'
+      ? 0
       : event.key === 'End'
-        ? 'meters'
-        : mainTabActive.value
-          ? 'meters'
-          : 'main';
-  await nextTick();
+        ? tabOrder.length - 1
+        : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabOrder.length) % tabOrder.length;
 
-  if (mainTabActive.value) mainTabButton.value?.focus();
-  else metersTabButton.value?.focus();
+  await selectTab(tabOrder[index]);
+  await nextTick();
+  [mainTabButton.value, spacesTabButton.value, metersTabButton.value][index]?.focus();
 }
 
 function clearServerErrors() {
@@ -186,13 +205,16 @@ async function save() {
 
     if (creating.value) {
       saving.value = false;
-      await router.replace(basePath.value + '/' + result.id);
+      await returnAfterCreate(basePath.value);
 
       return;
     }
 
     record.value = result;
     notice.value = 'Изменения сохранены.';
+    void objectOverview.value?.reload();
+    saving.value = false;
+    await returnAfterSave();
   } catch (e) {
     error.value = errorText(e);
 
@@ -202,45 +224,30 @@ async function save() {
   }
 }
 
-function landLordCreated(value: LandLord) {
-  createdLandLord.value = value;
-  form.landLordId = value.id;
-  modalOpen.value = false;
-  clearServerErrors();
-  notice.value = 'Арендодатель «' + value.name + '» создан и выбран.';
-}
-
 async function landLordSaved(value: LandLord) {
   if (creating.value) {
-    await router.replace(basePath.value + '/' + value.id);
+    await returnAfterCreate(basePath.value);
 
     return;
   }
 
   record.value = value;
+  await returnAfterSave();
 }
 
-function meterSettingsUpdated(value: RentalObject) {
+async function meterSettingsUpdated(value: RentalObject) {
   record.value = value;
   form.readingDay = String(value.readingDay);
   original.value = JSON.stringify({ ...JSON.parse(original.value), readingDay: value.readingDay });
+  await returnAfterSave();
 }
 
 onBeforeRouteLeave(() => {
   const busy = objects.value
     ? saving.value || meterSettings.value?.saving
     : landLordForm.value?.saving;
-  const changed = objects.value
-    ? dirty.value || meterSettings.value?.dirty
-    : landLordForm.value?.dirty;
 
-  return (
-    !busy &&
-    (!auth.user ||
-      !auth.canManageRentalRegistry ||
-      !changed ||
-      window.confirm('Есть несохранённые изменения. Покинуть страницу?'))
-  );
+  return !auth.user || !busy;
 });
 onMounted(load);
 onBeforeUnmount(() => controller?.abort());
@@ -249,9 +256,6 @@ onBeforeUnmount(() => controller?.abort());
 <template>
   <div class="page-heading">
     <div>
-      <div class="page-pretitle">
-        Недвижимость
-      </div>
       <h1>
         {{ title }}
       </h1>
@@ -315,9 +319,23 @@ onBeforeUnmount(() => controller?.abort());
           :aria-selected="mainTabActive"
           aria-controls="object-main-panel"
           :tabindex="mainTabIndex"
-          @click="activeTab = 'main'"
+          @click="selectTab('main')"
         >
           Основное
+        </button>
+        <button
+          id="object-spaces-tab"
+          ref="spacesTabButton"
+          type="button"
+          class="nav-link"
+          :class="{ active: spacesTabActive }"
+          role="tab"
+          :aria-selected="spacesTabActive"
+          aria-controls="object-spaces-panel"
+          :tabindex="spacesTabIndex"
+          @click="selectTab('spaces')"
+        >
+          Арендаторы
         </button>
         <button
           id="object-meters-tab"
@@ -329,23 +347,19 @@ onBeforeUnmount(() => controller?.abort());
           :aria-selected="metersTabActive"
           aria-controls="object-meters-panel"
           :tabindex="metersTabIndex"
-          @click="activeTab = 'meters'"
+          @click="selectTab('utilities')"
         >
-          Приборы учёта
+          Коммуналка
         </button>
       </div>
     </div>
     <div class="tab-content">
-      <form
+      <div
         id="object-main-panel"
         :role="mainPanelRole"
         :aria-labelledby="mainPanelLabel"
         class="tab-pane"
         :class="{ active: mainTabActive }"
-        novalidate
-        @submit.prevent="save"
-        @input="clearServerErrors"
-        @change="clearServerErrors"
       >
         <div class="card-body">
           <div
@@ -368,22 +382,33 @@ onBeforeUnmount(() => controller?.abort());
           >
             Просмотр. Изменять данные могут администратор и юрист.
           </div>
-          <div class="row g-3">
-            <div class="col-12 col-lg-4">
-              <TextInput
-                id="property-name"
-                v-model="form.name"
-                label="Наименование"
-                required
-                :readonly="!auth.canManageRentalRegistry || saving"
-                :error="serverErrors.name"
-                :validation-error="validationErrors.name"
-              />
-            </div>
-            <div class="col-12 col-lg-5">
-              <div class="reference-with-add">
-                <div class="reference-field">
-                  <ReferenceInput
+          <div class="object-main-layout">
+            <RentalObjectOverview
+              v-if="rentalObjectRecord"
+              ref="objectOverview"
+              :object-id="rentalObjectRecord.id"
+            />
+            <form
+              class="object-main-fields"
+              novalidate
+              @submit.prevent="save"
+              @input="clearServerErrors"
+              @change="clearServerErrors"
+            >
+              <div class="row g-3">
+                <div class="col-12 col-lg-4">
+                  <TextInput
+                    id="property-name"
+                    v-model="form.name"
+                    label="Наименование"
+                    required
+                    :readonly="!auth.canManageRentalRegistry || saving"
+                    :error="serverErrors.name"
+                    :validation-error="validationErrors.name"
+                  />
+                </div>
+                <div class="col-12 col-lg-5">
+                  <ReferenceSelect
                     id="property-landlord"
                     v-model="form.landLordId"
                     label="Арендодатель"
@@ -394,60 +419,58 @@ onBeforeUnmount(() => controller?.abort());
                     @update:model-value="clearServerErrors"
                   />
                 </div>
+                <div class="col-12 col-lg-3">
+                  <IntInput
+                    id="property-square"
+                    v-model="form.square"
+                    label="Сдаваемая площадь, м²"
+                    required
+                    :readonly="!auth.canManageRentalRegistry || saving"
+                    :error="serverErrors.square"
+                    :validation-error="validationErrors.square"
+                  />
+                </div>
+                <div class="col-12">
+                  <TextInput
+                    id="property-address"
+                    v-model="form.address"
+                    label="Адрес"
+                    required
+                    :readonly="!auth.canManageRentalRegistry || saving"
+                    :error="serverErrors.address"
+                    :validation-error="validationErrors.address"
+                  />
+                </div>
+              </div>
+              <div class="d-flex flex-wrap gap-2 mt-3">
                 <button
                   v-if="auth.canManageRentalRegistry"
-                  type="button"
-                  class="btn reference-add"
-                  :disabled="saving"
-                  @click="modalOpen = true"
+                  type="submit"
+                  class="btn btn-primary"
+                  :disabled="!canSave"
                 >
-                  Добавить
+                  {{ saveLabel }}
                 </button>
+                <FormBackButton :to="basePath" />
               </div>
-            </div>
-            <div class="col-12 col-lg-3">
-              <IntInput
-                id="property-square"
-                v-model="form.square"
-                label="Сдаваемая площадь, м²"
-                required
-                :readonly="!auth.canManageRentalRegistry || saving"
-                :error="serverErrors.square"
-                :validation-error="validationErrors.square"
-              />
-            </div>
-            <div class="col-12">
-              <TextInput
-                id="property-address"
-                v-model="form.address"
-                label="Адрес"
-                required
-                :readonly="!auth.canManageRentalRegistry || saving"
-                :error="serverErrors.address"
-                :validation-error="validationErrors.address"
-              />
-            </div>
-          </div>
-          <div
-            v-if="auth.canManageRentalRegistry"
-            class="d-flex flex-wrap gap-2 mt-3"
-          >
-            <button
-              type="submit"
-              class="btn btn-primary"
-              :disabled="!canSave"
-            >
-              {{ saveLabel }}
-            </button>
-            <RouterLink
-              :to="basePath"
-              class="btn"
-            >
-              Отмена
-            </RouterLink>
+            </form>
           </div>
         </div>
-      </form>
+      </div>
+      <div
+        v-if="rentalObjectRecord"
+        id="object-spaces-panel"
+        class="tab-pane"
+        :class="{ active: spacesTabActive }"
+        role="tabpanel"
+        aria-labelledby="object-spaces-tab"
+      >
+        <RentalObjectContracts
+          ref="objectContracts"
+          :object-id="rentalObjectRecord.id"
+          @updated="objectOverview?.reload()"
+        />
+      </div>
       <div
         v-if="rentalObjectRecord"
         id="object-meters-panel"
@@ -456,6 +479,10 @@ onBeforeUnmount(() => controller?.abort());
         role="tabpanel"
         aria-labelledby="object-meters-tab"
       >
+        <ObjectUnityProviders :object-id="rentalObjectRecord.id" />
+        <div class="hr-text mx-3">
+          Срок передачи показаний
+        </div>
         <RentalObjectMeterSettings
           ref="meterSettings"
           :object="rentalObjectRecord"
@@ -465,9 +492,16 @@ onBeforeUnmount(() => controller?.abort());
       </div>
     </div>
   </section>
-  <LandLordCreateModal
-    v-if="modalOpen"
-    @created="landLordCreated"
-    @close="modalOpen = false"
-  />
 </template>
+
+<style scoped>
+.object-main-layout {
+  display: grid;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.object-main-fields {
+  min-width: 0;
+}
+</style>

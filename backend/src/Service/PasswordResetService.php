@@ -60,7 +60,7 @@ final readonly class PasswordResetService
                 ->to($user->getEmail())
                 ->subject('Восстановление доступа к Land Lord Service')
                 ->htmlTemplate('emails/password_reset.html.twig')
-                ->context(['resetUrl' => rtrim($this->frontendUrl, '/').'/#/reset-password?token='.rawurlencode($plainToken), 'expiresMinutes' => (int) ceil($this->ttl / 60)]));
+                ->context(['resetUrl' => rtrim($this->frontendUrl, '/').'/reset-password?token='.rawurlencode($plainToken), 'expiresMinutes' => (int) ceil($this->ttl / 60)]));
         } catch (TransportExceptionInterface) {
             $this->em->remove($reset);
             $this->em->flush();

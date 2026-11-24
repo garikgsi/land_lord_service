@@ -19,7 +19,7 @@ ENV APP_ENV=prod APP_DEBUG=0
 COPY backend/ ./
 RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts \
     && APP_SECRET=build-only php bin/console assets:install public --env=prod --no-debug \
-    && mkdir -p var/cache var/log var/avatars \
+    && mkdir -p var/cache var/log var/avatars var/contract-files \
     && chown -R www-data:www-data var
 COPY --from=frontend /build/dist/ public/ui/
 

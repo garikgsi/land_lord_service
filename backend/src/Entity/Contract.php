@@ -10,15 +10,19 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\Table(name: 'contracts')]
 // Backing index of the PostgreSQL EXCLUDE constraint; its SQL is managed by migrations.
-#[ORM\Index(name: 'ex_contracts_space_period', columns: ['space_id'])]
+#[ORM\Index(name: 'ex_contracts_space_period', columns: ['space_id'], options: ['where' => '(NOT is_deleted)'])]
 #[ORM\Index(name: 'idx_contracts_space_id', columns: ['space_id'])]
 #[ORM\Index(name: 'idx_contracts_renter_id', columns: ['renter_id'])]
 #[ORM\Index(name: 'idx_contracts_land_lord_id', columns: ['land_lord_id'])]
 #[ORM\Index(name: 'idx_contracts_contract_type_id', columns: ['contract_type_id'])]
 #[ORM\Index(name: 'idx_contracts_expiry_date', columns: ['expiry_date'])]
 #[ORM\Index(name: 'idx_contracts_increase_date', columns: ['increase_date'])]
-class Contract
+class Contract implements VersionedEntity
 {
+    use HasDeletion;
+
+    use HasValidity;
+
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column]
@@ -54,6 +58,45 @@ class Contract
         #[ORM\Column(name: 'increase_percent', type: Types::DECIMAL, nullable: true, columnDefinition: 'NUMERIC')]
         private ?string $increasePercent = null,
     ) {
+    }
+
+    #[ORM\Column(name: 'increase_interval_months', nullable: true)]
+    private ?int $increaseIntervalMonths = null;
+
+    #[ORM\Column(name: 'last_indexation_date', type: Types::DATE_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $lastIndexationDate = null;
+
+    #[ORM\Column(name: 'is_signed', options: ['default' => true])]
+    private bool $isSigned = true;
+
+    public function isSigned(): bool
+    {
+        return $this->isSigned;
+    }
+
+    public function setSigned(bool $isSigned): void
+    {
+        $this->isSigned = $isSigned;
+    }
+
+    public function getLastIndexationDate(): ?\DateTimeImmutable
+    {
+        return $this->lastIndexationDate;
+    }
+
+    public function setLastIndexationDate(?\DateTimeImmutable $date): void
+    {
+        $this->lastIndexationDate = $date;
+    }
+
+    public function getIncreaseIntervalMonths(): ?int
+    {
+        return $this->increaseIntervalMonths;
+    }
+
+    public function setIncreaseIntervalMonths(?int $months): void
+    {
+        $this->increaseIntervalMonths = $months;
     }
 
     public function getId(): ?int

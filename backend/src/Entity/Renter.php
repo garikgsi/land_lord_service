@@ -11,8 +11,12 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'renters')]
 #[ORM\Index(name: 'idx_renters_ownership_id', columns: ['ownership_id'])]
 #[ORM\UniqueConstraint(name: 'uq_renters_inn', columns: ['inn'])]
-class Renter
+class Renter implements VersionedEntity
 {
+    use HasDeletion;
+
+    use HasValidity;
+
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column]

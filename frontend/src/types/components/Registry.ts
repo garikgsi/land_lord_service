@@ -14,7 +14,8 @@ export interface RegistryTableRow {
   landLordColor: CSSProperties;
   landLordColorLabel: string;
   landLordColorClass: string;
+  landLordBadgeColor: string;
   path: string;
 }
 
-export type RentalObjectTab = 'main' | 'meters';
+export type RentalObjectTab = 'main' | 'spaces' | 'utilities';

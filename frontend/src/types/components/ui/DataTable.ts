@@ -19,10 +19,14 @@ export interface DataTableProps<T extends TableRecord> {
   error?: boolean;
   emptyText?: string;
   rowRoute?: (row: T) => RouteLocationRaw;
+  rowAction?: (row: T) => void;
   rowLabel?: (row: T) => string;
   total?: number;
   page?: number;
   pageSize?: number;
+  clientPagination?: boolean;
+  deleteEndpoint?: string;
+  deleteAllowed?: (row: T) => boolean;
 }
 
 export interface DataTableSlots<T extends TableRecord> {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Badge from '../components/ui/Badge.vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { IconPlus } from '@tabler/icons-vue';
@@ -15,6 +16,9 @@ import type { RegistryProps, RegistryTableRow } from '../types/components/Regist
 
 const props = defineProps<RegistryProps>();
 const auth = useAuthStore();
+const deleteEndpoint = computed(() =>
+  auth.canManageRentalRegistry ? '/api/' + props.kind : undefined,
+);
 const { colorStyle } = useColor();
 const { api, errorText } = useApi();
 const items = ref<(RentalObject | LandLord)[]>([]);
@@ -52,6 +56,7 @@ const rows = computed<RegistryTableRow[]>(() =>
     landLordColorClass: ('landLord' in item ? item.landLord.color : item.color)
       ? ''
       : 'bg-indigo text-indigo-fg',
+    landLordBadgeColor: ('landLord' in item ? item.landLord.color : item.color) ?? 'indigo',
     path: basePath.value + '/' + item.id,
   })),
 );
@@ -77,6 +82,12 @@ function rowLabel(row: RegistryTableRow) {
 
 let controller: AbortController | undefined;
 let timer: ReturnType<typeof setTimeout> | undefined;
+
+function deleted() {
+  if (items.value.length === 1 && page.value > 1) page.value--;
+
+  void load();
+}
 
 async function load() {
   controller?.abort();
@@ -127,9 +138,6 @@ onBeforeUnmount(() => {
 <template>
   <div class="page-heading">
     <div>
-      <div class="page-pretitle">
-        Недвижимость
-      </div>
       <h1>
         {{ title }}
       </h1>
@@ -153,6 +161,8 @@ onBeforeUnmount(() => {
   </div>
   <section class="card">
     <DataTable
+      :delete-endpoint="deleteEndpoint"
+      @deleted="deleted"
       :rows="rows"
       :columns="columns"
       :caption="title"
@@ -194,7 +204,7 @@ onBeforeUnmount(() => {
         >
           <IconPlus :size="18" />
           <span class="list-add-label">
-            {{ addLabel }}
+            Добавить
           </span>
         </RouterLink>
       </template>
@@ -210,14 +220,13 @@ onBeforeUnmount(() => {
             {{ row.address }}
           </div>
         </template>
-        <span
+        <Badge
           v-else-if="column.key === 'landLord'"
-          class="badge landlord-badge"
-          :class="row.landLordColorClass"
-          :style="row.landLordColor"
+          :color="row.landLordBadgeColor"
+          wrap
         >
           {{ row.landLord }}
-        </span>
+        </Badge>
         <span
           v-else-if="column.key === 'landLordColor'"
           class="color-dot"

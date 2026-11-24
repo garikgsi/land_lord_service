@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FormBackButton from './ui/FormBackButton.vue';
 import { computed, ref } from 'vue';
 import TextInput from './ui/TextInput.vue';
 import ColorInput from './ui/ColorInput.vue';
@@ -129,10 +130,11 @@ defineExpose({ dirty, saving });
       </div>
     </div>
     <div
-      v-if="auth.canManageRentalRegistry"
-      class="card-footer d-flex gap-2"
+      v-if="auth.canManageRentalRegistry || !modal"
+      class="card-footer d-flex flex-wrap gap-2"
     >
       <button
+        v-if="auth.canManageRentalRegistry"
         type="submit"
         class="btn btn-primary"
         :disabled="!canSave"
@@ -148,6 +150,10 @@ defineExpose({ dirty, saving });
       >
         Отмена
       </button>
+      <FormBackButton
+        v-else
+        to="/objects/land-lords"
+      />
     </div>
   </form>
 </template>

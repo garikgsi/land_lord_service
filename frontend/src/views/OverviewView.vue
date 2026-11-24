@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import DataTable from '../components/ui/DataTable.vue';
-import type { TableColumn } from '../types/components/ui/DataTable';
-import type { ContractPreviewRow } from '../types/components/ContractPreviewRow';
+import Badge from '../components/ui/Badge.vue';
+import LegalDashboard from '../components/LegalDashboard.vue';
+import { useAuthStore } from '../store/auth';
+import ContractInterventionsTable from '../components/ContractInterventionsTable.vue';
 import {
   IconBuildingEstate,
   IconCalendarMonth,
@@ -10,14 +11,7 @@ import {
   IconGauge,
 } from '@tabler/icons-vue';
 
-const contractRows: ContractPreviewRow[] = [];
-const contractColumns: TableColumn<ContractPreviewRow>[] = [
-  { key: 'contractNum', label: 'Договор' },
-  { key: 'objectName', label: 'Объект' },
-  { key: 'renterName', label: 'Арендатор' },
-  { key: 'expiryDate', label: 'Окончание' },
-];
-
+const auth = useAuthStore();
 const summaries = [
   {
     title: 'Договоры аренды',
@@ -49,9 +43,6 @@ const summaries = [
 <template>
   <div class="page-heading">
     <div>
-      <div class="page-pretitle">
-        Недвижимость
-      </div>
       <h1>
         Обзор
       </h1>
@@ -68,7 +59,12 @@ const summaries = [
     </RouterLink>
   </div>
 
-  <div class="summary-grid">
+  <LegalDashboard v-if="auth.canViewLegalDashboard" />
+
+  <div
+    v-if="!auth.canViewLegalDashboard"
+    class="summary-grid"
+  >
     <RouterLink
       v-for="summary in summaries"
       :key="summary.path"
@@ -96,7 +92,10 @@ const summaries = [
     </RouterLink>
   </div>
 
-  <div class="overview-grid">
+  <div
+    v-if="!auth.canViewLegalDashboard"
+    class="overview-grid"
+  >
     <section class="card overview-properties">
       <div class="card-header">
         <h2 class="card-title">
@@ -185,9 +184,9 @@ const summaries = [
         <h2 class="card-title">
           Ближайшие события
         </h2>
-        <span class="badge bg-secondary-lt">
+        <Badge color="secondary">
           Календарь
-        </span>
+        </Badge>
       </div>
       <div class="upcoming-body">
         <div class="empty-icon-circle">
@@ -223,39 +222,7 @@ const summaries = [
     </section>
   </div>
 
-  <section class="card contracts-preview">
-    <DataTable
-      :rows="contractRows"
-      :columns="contractColumns"
-      caption="Предварительное представление реестра договоров"
-    >
-      <template #header>
-        <div>
-          <h2 class="card-title">
-            Договоры аренды
-          </h2>
-          <div class="text-secondary mt-1">
-            По объектам и датам окончания
-          </div>
-        </div>
-        <RouterLink
-          to="/contracts"
-          class="subtle-link"
-        >
-          Открыть реестр
-        </RouterLink>
-      </template>
-      <template #empty>
-        <div class="register-placeholder">
-          <IconFileText
-            :size="23"
-            stroke="1.5"
-          />
-          <span>
-            Здесь появятся ваши договоры аренды
-          </span>
-        </div>
-      </template>
-    </DataTable>
+  <section class="card contract-interventions">
+    <ContractInterventionsTable />
   </section>
 </template>

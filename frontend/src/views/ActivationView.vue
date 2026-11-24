@@ -4,6 +4,7 @@ import EmailInput from '../components/ui/EmailInput.vue';
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { RouterLink, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
 import AuthCard from '../components/AuthCard.vue';
+import DeleteConfirmModal from '../components/ui/DeleteConfirmModal.vue';
 import UserAvatar from '../components/UserAvatar.vue';
 import { IconTrash } from '@tabler/icons-vue';
 import useApi from '../use/api';
@@ -32,6 +33,7 @@ const error = ref('');
 const invalid = ref('');
 const visible = ref(false);
 const avatarBusy = ref(false);
+const avatarDeleteOpen = ref(false);
 const avatarImage = ref<string | null>(null);
 const avatarMessage = ref('');
 const avatarInput = ref<HTMLInputElement | null>(null);
@@ -182,7 +184,14 @@ async function chooseAvatar(event: Event) {
   }
 }
 
+function requestAvatarDelete() {
+  error.value = '';
+  avatarDeleteOpen.value = true;
+}
+
 async function deleteAvatar() {
+  if (avatarBusy.value) return;
+
   avatarBusy.value = true;
   error.value = '';
   avatarMessage.value = '';
@@ -198,6 +207,7 @@ async function deleteAvatar() {
 
     setImage(null);
     avatarMessage.value = 'Фото удалено.';
+    avatarDeleteOpen.value = false;
   } catch (e) {
     error.value = errorText(e);
   } finally {
@@ -322,7 +332,7 @@ onBeforeUnmount(() => {
               v-if="profile.hasAvatar"
               type="button"
               class="btn btn-sm btn-outline-danger mt-2"
-              @click="deleteAvatar"
+              @click="requestAvatarDelete"
             >
               <IconTrash :size="16" />
               Удалить фото
@@ -474,4 +484,13 @@ onBeforeUnmount(() => {
       Вернуться ко входу
     </RouterLink>
   </AuthCard>
+  <DeleteConfirmModal
+    v-if="avatarDeleteOpen"
+    title="Удалить фото?"
+    message="Фотография профиля будет удалена."
+    :busy="avatarBusy"
+    :error="error"
+    @confirm="deleteAvatar"
+    @cancel="avatarDeleteOpen = false"
+  />
 </template>

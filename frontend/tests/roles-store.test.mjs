@@ -46,7 +46,7 @@ test('role catalogue is loaded once and labels come from the server', async () =
 
   assert.deepEqual(
     [calls, roles.loaded, roles.items, roles.labels.ROLE_TECHNICIAN, roles.colors.ROLE_SUPER_ADMIN],
-    [[['/api/roles', 'Bearer fixture-token']], true, items, 'Название с сервера', 'bg-purple-lt'],
+    [[['/api/roles', 'Bearer fixture-token']], true, items, 'Название с сервера', 'purple'],
   );
 });
 

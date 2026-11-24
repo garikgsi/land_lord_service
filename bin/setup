@@ -20,5 +20,7 @@ docker compose build --pull php
 docker compose run --rm --no-deps php composer install --no-interaction
 docker compose run --rm --no-deps node npm ci --no-fund
 docker compose run --rm --no-deps node npm run build
-docker compose up -d --wait
+docker compose up -d --wait database php nginx
 docker compose exec -T php php bin/console doctrine:migrations:migrate --no-interaction
+
+docker compose up -d --build --wait notifications

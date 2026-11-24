@@ -5,5 +5,6 @@ export interface Section {
   title: string;
   icon: Component;
   admin?: boolean;
+  notificationSettings?: boolean;
   group?: 'catalogues';
 }

@@ -59,7 +59,7 @@ final readonly class UserInvitationService
                     ->from($this->mailFrom)->to($user->getEmail())
                     ->subject('Приглашение в Land Lord Service')
                     ->htmlTemplate('emails/user_invitation.html.twig')
-                    ->context(['firstName' => $user->getFirstName(), 'invitationUrl' => rtrim($this->frontendUrl, '/').'/#/activate?token='.$plain, 'expiresHours' => (int) ceil($this->ttl / 3600)]));
+                    ->context(['firstName' => $user->getFirstName(), 'invitationUrl' => rtrim($this->frontendUrl, '/').'/activate?token='.$plain, 'expiresHours' => (int) ceil($this->ttl / 3600)]));
             });
         } catch (TransportExceptionInterface) {
             throw new ServiceUnavailableHttpException();

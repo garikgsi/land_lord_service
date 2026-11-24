@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import { computed, ref, useAttrs } from 'vue';
 import useValidation from '../../use/validation';
-import type { InputValidationProps } from '../../types/components/ui/Input';
+import type { EmailInputProps } from '../../types/components/ui/EmailInput';
 
 defineOptions({ inheritAttrs: false });
-const props = defineProps<InputValidationProps>();
+const props = defineProps<EmailInputProps>();
 const model = defineModel<string>({ default: '' });
 const input = ref<HTMLInputElement | null>(null);
 const touched = ref(false);
 const attrs = useAttrs();
 const { email } = useValidation();
 const message = computed(
-  () => props.error || (touched.value || !!model.value ? email(model.value) : ''),
+  () =>
+    props.error ||
+    ((touched.value || !!model.value) && (!props.optional || !!model.value.trim())
+      ? email(model.value)
+      : ''),
 );
 
 const errorId = computed(() => (attrs.id ? String(attrs.id) + '-error' : undefined));

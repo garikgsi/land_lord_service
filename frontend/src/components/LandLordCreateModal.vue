@@ -30,7 +30,7 @@ onBeforeUnmount(() => dialog.value?.close());
   <Teleport to="body">
     <dialog
       ref="dialog"
-      class="landlord-dialog"
+      class="ui-dialog landlord-dialog"
       aria-labelledby="landlord-dialog-title"
       @cancel="cancel"
       @click.self="close"

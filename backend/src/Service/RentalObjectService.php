@@ -8,6 +8,7 @@ use App\Dto\RegistryListQuery;
 use App\Dto\RentalObjectInput;
 use App\Dto\RentalObjectMeterSettingsInput;
 use App\Entity\RentalObject;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
@@ -20,6 +21,7 @@ final readonly class RentalObjectService
         private EntityManagerInterface $em,
         private LandLordService $landLords,
         private ContractService $contracts,
+        private SpaceService $spaces,
     ) {
     }
 
@@ -56,20 +58,25 @@ final readonly class RentalObjectService
             throw new UnprocessableEntityHttpException('Выбранный арендодатель не найден. Обновите список и выберите другого.');
         }
 
-        if (null !== $record && $record->getLandLord()->getId() !== $landLord->getId() && $this->contracts->hasUnfinishedForObject($record)) {
-            throw new ConflictHttpException('Смена арендодателя требует перезаключения договоров. Сначала завершите текущие и будущие договоры объекта.');
-        }
+        return $this->em->wrapInTransaction(function () use ($record, $input, $landLord): RentalObject {
+            if (null !== $record) {
+                $this->em->refresh($record, LockMode::PESSIMISTIC_WRITE);
+            }
+            if (null !== $record && $record->getLandLord()->getId() !== $landLord->getId() && $this->contracts->hasUnfinishedForObject($record)) {
+                throw new ConflictHttpException('Смена арендодателя требует перезаключения договоров. Сначала завершите текущие и будущие договоры объекта.');
+            }
+            $saved = $record ?? new RentalObject($landLord, $input->square, trim($input->name), trim($input->address), $input->readingDay);
+            $saved->setName(trim($input->name));
+            $saved->setAddress(trim($input->address));
+            $saved->setSquare($input->square);
+            $saved->setLandLord($landLord);
+            $saved->setReadingDay($input->readingDay);
+            $this->em->persist($saved);
+            $this->em->flush();
+            $this->spaces->assertAvailable($saved);
 
-        $record ??= new RentalObject($landLord, $input->square, trim($input->name), trim($input->address), $input->readingDay);
-        $record->setName(trim($input->name));
-        $record->setAddress(trim($input->address));
-        $record->setSquare($input->square);
-        $record->setLandLord($landLord);
-        $record->setReadingDay($input->readingDay);
-        $this->em->persist($record);
-        $this->em->flush();
-
-        return $record;
+            return $saved;
+        });
     }
 
     public function updateMeterSettings(RentalObject $object, RentalObjectMeterSettingsInput $input): RentalObject
@@ -78,5 +85,15 @@ final readonly class RentalObjectService
         $this->em->flush();
 
         return $object;
+    }
+
+    public function remove(RentalObject $record): void
+    {
+        $this->em->wrapInTransaction(function () use ($record): void {
+            $this->em->refresh($record, LockMode::PESSIMISTIC_WRITE);
+            SoftDeletionGuard::assertUnused($this->em, $record);
+            $record->markDeleted();
+            $this->em->flush();
+        });
     }
 }

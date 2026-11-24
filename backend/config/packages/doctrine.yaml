@@ -1,5 +1,7 @@
 doctrine:
   dbal:
+    # Snapshot tables are maintained explicitly by migrations, not ORM schema diff.
+    schema_filter: ~^(?!.*_history$)~
     types:
       decimal: App\Doctrine\UnboundedNumericType
     url: '%env(resolve:DATABASE_URL)%'
@@ -11,6 +13,7 @@ doctrine:
     profiling_collect_backtrace: '%kernel.debug%'
 
   orm:
+    default_repository_class: App\Repository\RegistryRepository
     auto_mapping: true
     mappings:
       App:

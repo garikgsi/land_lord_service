@@ -1,4 +1,5 @@
 :root {
+  --tblr-info: var(--tblr-azure);
   --tblr-font-sans-serif: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --workspace-sidebar-width: 220px;
 }
@@ -28,6 +29,9 @@ a:focus-visible {
   border-right: 1px solid var(--tblr-border-color);
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   z-index: 1050;
   transform: translateX(-100%);
   visibility: hidden;
@@ -36,6 +40,9 @@ a:focus-visible {
     visibility 0.2s;
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
+}
+.workspace-sidebar > * {
+  flex-shrink: 0;
 }
 .workspace-sidebar.is-open {
   transform: translateX(0);
@@ -218,12 +225,6 @@ a:focus-visible {
   color: var(--tblr-secondary-color);
   font-size: 0.8125rem;
 }
-.prototype-notice .badge {
-  padding: 6px 9px;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  letter-spacing: 0;
-}
 .page-heading {
   display: flex;
   align-items: flex-start;
@@ -232,17 +233,8 @@ a:focus-visible {
   margin-bottom: 21px;
 }
 .page-heading > .btn {
-  font-size: 0;
   min-width: 42px;
   padding: 10px;
-}
-.page-pretitle {
-  color: var(--tblr-secondary-color);
-  font-size: 0.875rem;
-  font-weight: 500;
-  text-transform: none;
-  letter-spacing: 0;
-  margin-bottom: 5px;
 }
 .page-heading h1 {
   font-size: 1.65rem;
@@ -262,7 +254,7 @@ a:focus-visible {
   font-size: 0.875rem;
   border-radius: 7px;
 }
-.btn:not(.btn-primary) {
+.btn:not(.btn-primary, .btn-danger, .btn-secondary) {
   --tblr-btn-bg: var(--tblr-bg-surface);
   --tblr-btn-color: var(--tblr-body-color);
 }
@@ -428,11 +420,6 @@ a:focus-visible {
 .upcoming-card {
   display: flex;
   flex-direction: column;
-}
-.upcoming-card .badge {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  letter-spacing: 0;
 }
 .upcoming-body {
   text-align: center;
@@ -881,14 +868,13 @@ a:focus-visible {
   cursor: default;
 }
 
-.reference-with-add {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-}
-.reference-field {
-  flex: 1;
-  min-width: 0;
+.input-group > .ts-hidden-accessible:first-child + .ts-wrapper.reference-select {
+  margin-inline-start: 0 !important;
+  border-start-start-radius: var(
+    --tblr-control-border-radius,
+    var(--tblr-border-radius)
+  ) !important;
+  border-end-start-radius: var(--tblr-control-border-radius, var(--tblr-border-radius)) !important;
 }
 .ts-wrapper.reference-select {
   min-height: calc(
@@ -909,24 +895,20 @@ a:focus-visible {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.reference-add {
-  margin-top: 1.75rem;
-  flex-shrink: 0;
-}
-.reference-field .ts-dropdown {
+.ts-wrapper.reference-select .ts-dropdown {
   z-index: 1050;
   color: var(--tblr-body-color);
   background: var(--tblr-bg-surface);
   border-color: var(--tblr-border-color);
 }
-.reference-field .ts-dropdown .active {
+.ts-wrapper.reference-select .ts-dropdown .active {
   color: var(--tblr-primary);
   background: var(--tblr-primary-lt);
 }
-.reference-field .ts-dropdown .no-results {
+.ts-wrapper.reference-select .ts-dropdown .no-results {
   padding: 0.75rem;
 }
-.landlord-dialog {
+.ui-dialog {
   width: min(560px, calc(100vw - 2rem));
   max-height: calc(100dvh - 2rem);
   padding: 0;
@@ -935,12 +917,33 @@ a:focus-visible {
   color: var(--tblr-body-color);
   background: var(--tblr-bg-surface);
 }
-.landlord-dialog::backdrop {
+.renter-dialog,
+.ui-dialog-wide {
+  width: min(960px, calc(100vw - 2rem));
+}
+.ui-dialog .modal-body,
+.ui-dialog .modal-footer {
+  padding: 1.5rem;
+}
+.ui-dialog .modal-footer {
+  gap: 0.5rem;
+}
+.delete-confirm-dialog {
+  width: min(420px, calc(100vw - 2rem));
+}
+.delete-confirm-dialog .modal-body {
+  padding: 1.5rem;
+}
+.delete-confirm-dialog .modal-footer {
+  padding: 0 1.5rem 1.5rem;
+  border: 0;
+}
+.ui-dialog::backdrop {
   background: rgba(0, 0, 0, 0.55);
 }
-.landlord-dialog .modal-header,
-.landlord-dialog .card-body,
-.landlord-dialog .card-footer {
+.ui-dialog .modal-header,
+.ui-dialog .card-body,
+.ui-dialog .card-footer {
   padding: 1.5rem;
 }
 
@@ -989,12 +992,6 @@ a:focus-visible {
   border-radius: 50%;
   vertical-align: middle;
   flex-shrink: 0;
-}
-.landlord-badge {
-  max-width: 100%;
-  white-space: normal;
-  text-align: left;
-  line-height: 1.4;
 }
 @media (max-width: 767px) {
   .user-filters .form-control {
@@ -1077,5 +1074,107 @@ a:focus-visible {
   .data-table-cell .btn {
     max-width: 100%;
     white-space: normal;
+  }
+}
+
+.notification-bell {
+  position: relative;
+  flex-shrink: 0;
+}
+.notification-bell .project-badge {
+  position: absolute;
+  top: -0.25rem;
+  right: -0.3rem;
+}
+.notification-message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.notification-summary {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 639px) {
+  .navigation-search {
+    width: min(32vw, 150px);
+  }
+}
+
+.notifications-card .data-table-header {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.notifications-card .data-table-header-content {
+  flex-basis: 220px;
+}
+.notifications-card .data-table-actions {
+  max-width: 100%;
+}
+
+.contract-interventions .data-table-header {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.contract-interventions .data-table-header-content {
+  flex: 1 1 260px;
+  flex-wrap: wrap;
+}
+.contract-interventions .card-title {
+  flex-basis: 100%;
+}
+.contract-interventions .data-table-actions {
+  align-self: flex-end;
+}
+
+.object-utilities .data-table-header-content {
+  align-items: stretch;
+}
+.object-utilities .data-table-header {
+  background: var(--tblr-bg-surface-secondary);
+}
+@media (max-width: 767px) {
+  .object-utilities .data-table-header {
+    flex-wrap: wrap;
+  }
+  .object-utilities .data-table-header-content {
+    flex-basis: 100%;
+  }
+}
+
+/* Shared Tabler Basic badge; rem sizing prevents context-dependent text sizes. */
+.project-badge {
+  --tblr-badge-font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  padding: 0.25em 0.5em;
+  font-size: 0.75rem;
+  font-weight: var(--tblr-font-weight-medium, 500);
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  white-space: nowrap;
+  border-radius: var(--tblr-border-radius);
+}
+.project-badge:hover {
+  text-decoration: none;
+}
+.project-badge--wrap {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.project-badge--pill {
+  border-radius: 999px;
+}
+.project-badge--small {
+  min-width: 1.1rem;
+  padding: 0.2rem 0.3rem;
+  font-size: 0.625rem;
+}
+
+@media (min-width: 768px) {
+  .object-utilities .data-table-actions {
+    padding-top: 1.75rem;
   }
 }

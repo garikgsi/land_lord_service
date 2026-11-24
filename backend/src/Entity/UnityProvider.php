@@ -10,17 +10,22 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\Table(name: 'unity_providers')]
 #[ORM\Index(name: 'idx_unity_providers_unity_id', columns: ['unity_id'])]
-class UnityProvider
+class UnityProvider implements VersionedEntity
 {
+    use HasDeletion;
+
+    use HasValidity;
+
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column]
     private ?int $id = null;
 
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'unity_id', nullable: true, onDelete: 'RESTRICT', options: ['comment' => 'Legacy global utility before object-specific suppliers; not used by the application'])]
+    private ?Unity $legacyUnity = null;
+
     public function __construct(
-        #[ORM\ManyToOne]
-        #[ORM\JoinColumn(name: 'unity_id', nullable: false, onDelete: 'RESTRICT')]
-        private Unity $unity,
         #[ORM\Column(name: 'name', type: Types::TEXT)]
         private string $name,
     ) {
@@ -29,16 +34,6 @@ class UnityProvider
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function getUnity(): Unity
-    {
-        return $this->unity;
-    }
-
-    public function setUnity(Unity $unity): void
-    {
-        $this->unity = $unity;
     }
 
     public function getName(): string

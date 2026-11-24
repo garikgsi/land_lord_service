@@ -1,4 +1,5 @@
 {% extends 'base.html.twig' %}
+{% from 'ui/badge.html.twig' import badge %}
 
 {% block title %}Состояние сервиса · Land Lord Service{% endblock %}
 
@@ -24,9 +25,6 @@
         </div>
         <div class="page-heading">
             <div>
-                <div class="page-pretitle">
-                    Служебная страница
-                </div>
                 <h1>
                     Состояние сервиса
                 </h1>
@@ -41,17 +39,13 @@
                     <span>
                         Сервер
                     </span>
-                    <span class="badge bg-green-lt">
-                        Доступен
-                    </span>
+                    {{ badge('Доступен', 'green') }}
                 </div>
                 <div class="server-status">
                     <span>
                         База данных
                     </span>
-                    <span class="badge {{ available ? 'bg-green-lt' : 'bg-red-lt' }}">
-                        {{ available ? 'Доступна' : 'Недоступна' }}
-                    </span>
+                    {{ badge(available ? 'Доступна' : 'Недоступна', available ? 'green' : 'red') }}
                 </div>
                 <div class="mt-4">
                     <a class="btn btn-primary" href="{{ path('application') }}">

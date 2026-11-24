@@ -1,0 +1,5 @@
+{% macro badge(label, color = 'secondary') %}
+    <span class="badge project-badge bg-{{ color }} text-{{ color }}-fg">
+        {{ label }}
+    </span>
+{% endmacro %}

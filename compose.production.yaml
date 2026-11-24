@@ -8,7 +8,7 @@ services:
       dockerfile: Dockerfile.production
       target: php
     restart: unless-stopped
-    environment:
+    environment: &application_environment
       APP_ENV: prod
       APP_DEBUG: "0"
       APP_SECRET: ${APP_SECRET:?Set APP_SECRET in the production env file}
@@ -16,12 +16,30 @@ services:
       APP_FRONTEND_URL: ${APP_FRONTEND_URL:?Set the public HTTPS URL}
       DEFAULT_URI: ${APP_FRONTEND_URL:?Set the public HTTPS URL}
       MAILER_DSN: ${MAILER_DSN:?Set the SMTP DSN}
+      NOTIFICATION_CHANNELS: ${NOTIFICATION_CHANNELS:-db}
+      NOTIFICATION_EMAIL_ENABLED: ${NOTIFICATION_EMAIL_ENABLED:-0}
       MAIL_FROM: ${MAIL_FROM:?Set the sender address}
       ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-28800}
       PASSWORD_RESET_TTL: ${PASSWORD_RESET_TTL:-3600}
       USER_INVITATION_TTL: ${USER_INVITATION_TTL:-86400}
     volumes:
       - ./var/production/avatars:/app/var/avatars
+      - ./var/production/contract-files:/app/var/contract-files
+    depends_on:
+      database:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  notifications:
+    image: ${COMPOSE_PROJECT_NAME:-landlordservice-prod}-php:production
+    user: www-data
+    command: [sh, bin/notifications-worker]
+    restart: unless-stopped
+    environment: *application_environment
     depends_on:
       database:
         condition: service_healthy

@@ -16,9 +16,6 @@ const descriptions: Record<string, string> = {
 <template>
   <div class="page-heading">
     <div>
-      <div class="page-pretitle">
-        Рабочее пространство
-      </div>
       <h1>
         {{ section?.title }}
       </h1>

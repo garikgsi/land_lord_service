@@ -10,8 +10,12 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\Table(name: 'spaces')]
 #[ORM\Index(name: 'idx_spaces_object_id', columns: ['object_id'])]
-class Space
+class Space implements VersionedEntity
 {
+    use HasDeletion;
+
+    use HasValidity;
+
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column]

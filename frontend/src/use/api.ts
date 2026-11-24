@@ -1,4 +1,6 @@
 import useEvent from './event.ts';
+import { pinia } from '../store/index.ts';
+import { sessionCacheKey, useSessionCacheStore } from '../store/sessionCache.ts';
 import type { ApiClient, ApiErrors } from '../types/use/Api';
 
 export class ApiError extends Error {
@@ -18,6 +20,8 @@ const events = useEvent();
 let accessToken: string | null = null;
 
 function setToken(token: string | null) {
+  if (accessToken !== token) useSessionCacheStore(pinia).reset();
+
   accessToken = token;
 }
 
@@ -71,14 +75,32 @@ async function request(
     );
   }
 
+  if ((init.method ?? 'GET').toUpperCase() !== 'GET' && requestToken === accessToken)
+    useSessionCacheStore(pinia).reset();
+
   return response;
 }
 
 /** JSON response; 204 resolves to undefined. FormData is sent without a manual boundary. */
 async function api<T>(path: string, init: RequestInit = {}, authenticated = true): Promise<T> {
-  const response = await request(path, init, authenticated);
+  const cache = useSessionCacheStore(pinia);
+  const key =
+    authenticated && accessToken && (init.method ?? 'GET').toUpperCase() === 'GET'
+      ? sessionCacheKey(path)
+      : null;
+  const cached = key ? cache.get(key) : undefined;
 
-  return response.status === 204 ? (undefined as T) : (response.json() as Promise<T>);
+  if (init.signal?.aborted) throw init.signal.reason;
+
+  if (cached) return structuredClone(cached.value) as T;
+
+  const version = cache.generation;
+  const response = await request(path, init, authenticated);
+  const value = response.status === 204 ? undefined : await response.json();
+
+  if (key) cache.put(key, value, version);
+
+  return value as T;
 }
 
 function errorText(error: unknown): string {

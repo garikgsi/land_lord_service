@@ -103,3 +103,54 @@ test('a rejected public login stays on the login form', async () => {
     ['/login', {}],
   );
 });
+
+test('technician can open meter creation and reading forms while verification is guarded', async () => {
+  await openPrivate();
+  auth.user = { ...user, roles: ['ROLE_TECHNICIAN'] };
+  router.addRoute({ path: '/meters', component: {}, meta: { requiresAuth: true } });
+  router.addRoute({
+    path: '/meters/new',
+    component: {},
+    meta: { requiresAuth: true, meterInstall: true },
+  });
+  router.addRoute({
+    path: '/meters/1/readings/new',
+    component: {},
+    meta: { requiresAuth: true, meterReadingEdit: true },
+  });
+  router.addRoute({
+    path: '/meters/1/verifications/new',
+    component: {},
+    meta: { requiresAuth: true, meterEdit: true },
+  });
+
+  const paths = [];
+
+  for (const path of ['/meters/new', '/meters/1/readings/new', '/meters/1/verifications/new']) {
+    await router.push(path);
+    paths.push(router.currentRoute.value.path);
+  }
+
+  assert.deepEqual(paths, ['/meters/new', '/meters/1/readings/new', '/meters']);
+});
+
+test('notification settings route is open to director and guarded for lawyer', async () => {
+  await openPrivate();
+  router.addRoute({ path: '/', component: {}, meta: { requiresAuth: true } });
+  router.addRoute({
+    path: '/settings/notification-types',
+    component: {},
+    meta: { requiresAuth: true, notificationSettings: true },
+  });
+  auth.user = { ...user, roles: ['ROLE_DIRECTOR'] };
+  await router.push('/settings/notification-types');
+  const directorPath = router.currentRoute.value.path;
+
+  await router.push('/');
+  auth.user = { ...user, roles: ['ROLE_LAWYER'] };
+  await router.push('/settings/notification-types');
+  assert.deepEqual(
+    [directorPath, router.currentRoute.value.path],
+    ['/settings/notification-types', '/'],
+  );
+});

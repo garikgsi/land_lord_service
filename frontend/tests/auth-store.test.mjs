@@ -156,3 +156,56 @@ test('disposing a store removes its subscription to application events', async (
   useEvent().emit('session-expired');
   assert.equal(auth.user.email, user.email);
 });
+
+test('technician can enter readings and install meters without editing metadata or catalogues', () => {
+  const roles = [
+    ['ROLE_TECHNICIAN'],
+    ['ROLE_ACCOUNTANT', 'ROLE_TECHNICIAN'],
+    ['ROLE_ADMIN'],
+    ['ROLE_SUPER_ADMIN'],
+    ['ROLE_ADMIN', 'ROLE_TECHNICIAN'],
+    ['ROLE_LAWYER'],
+    [],
+  ];
+  const permissions = roles.map((value) => {
+    auth.user = { id: 1, email: 'user@test.example', roles: value };
+
+    return [auth.canManageMeters, auth.canEditMeterReadings, auth.canInstallMeters];
+  });
+
+  assert.deepEqual(permissions, [
+    [false, true, true],
+    [false, true, true],
+    [true, true, true],
+    [true, true, true],
+    [true, true, true],
+    [false, false, false],
+    [false, false, false],
+  ]);
+});
+
+test('dashboard includes lawyer director and admins while settings exclude lawyer-only users', () => {
+  const permissions = [
+    ['ROLE_ADMIN'],
+    ['ROLE_SUPER_ADMIN'],
+    ['ROLE_DIRECTOR'],
+    ['ROLE_LAWYER'],
+    ['ROLE_TECHNICIAN'],
+    ['ROLE_ACCOUNTANT'],
+    ['ROLE_LAWYER', 'ROLE_DIRECTOR'],
+  ].map((roles) => {
+    auth.user = { id: 1, email: 'test@example.com', roles };
+
+    return [auth.canViewLegalDashboard, auth.canManageNotificationTypes];
+  });
+
+  assert.deepEqual(permissions, [
+    [true, true],
+    [true, true],
+    [true, true],
+    [true, false],
+    [false, false],
+    [false, false],
+    [true, true],
+  ]);
+});

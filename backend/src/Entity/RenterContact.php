@@ -10,8 +10,12 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\Table(name: 'renter_contacts')]
 #[ORM\Index(name: 'idx_renter_contacts_renter_id', columns: ['renter_id'])]
-class RenterContact
+class RenterContact implements VersionedEntity
 {
+    use HasDeletion;
+
+    use HasValidity;
+
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column]

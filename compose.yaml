@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     working_dir: /app
-    environment:
+    environment: &application_environment
       APP_ENV: ${APP_ENV:-dev}
       APP_DEBUG: ${APP_DEBUG:-1}
       APP_SECRET: ${APP_SECRET:?Generate .env before starting}
@@ -13,11 +13,27 @@ services:
       USER_INVITATION_TTL: ${USER_INVITATION_TTL:-86400}
       APP_FRONTEND_URL: ${APP_FRONTEND_URL:-http://127.0.0.1:18080}
       MAILER_DSN: ${MAILER_DSN:-null://null}
+      NOTIFICATION_CHANNELS: ${NOTIFICATION_CHANNELS:-db}
+      NOTIFICATION_EMAIL_ENABLED: ${NOTIFICATION_EMAIL_ENABLED:-0}
       MAIL_FROM: ${MAIL_FROM:-noreply@example.com}
       DATABASE_URL: postgresql://${POSTGRES_USER:-landlordservice}:${POSTGRES_PASSWORD:?Generate .env before starting}@database:5432/${POSTGRES_DB:-landlordservice}?serverVersion=18&charset=utf8
     volumes:
       - ./backend:/app
       - ./frontend/dist:/app/public/ui:ro
+    depends_on:
+      database:
+        condition: service_healthy
+
+  notifications:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /app
+    command: [sh, bin/notifications-worker]
+    restart: unless-stopped
+    environment: *application_environment
+    volumes:
+      - ./backend:/app
     depends_on:
       database:
         condition: service_healthy

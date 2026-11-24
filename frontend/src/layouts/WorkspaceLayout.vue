@@ -1,8 +1,12 @@
 <script setup lang="ts">
+import Badge from '../components/ui/Badge.vue';
+import useEvent from '../use/event';
+import useBrowserEvents from '../use/browserEvents';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import {
   IconBooks,
+  IconBell,
   IconChevronDown,
   IconBuildingEstate,
   IconMenu2,
@@ -13,31 +17,50 @@ import {
 import TomSelect from 'tom-select';
 import { useAuthStore } from '../store/auth';
 import { useRolesStore } from '../store/roles';
+import { useNotificationsStore } from '../store/notifications';
 import UserAvatar from '../components/UserAvatar.vue';
 import { sections } from '../router';
 import useApi from '../use/api';
 
 const auth = useAuthStore();
 const roles = useRolesStore();
+const notifications = useNotificationsStore();
 const roleLoadError = ref('');
 
 const { api, errorText } = useApi();
 
 const visibleSections = computed(() =>
   sections
-    .filter((section) => !section.admin || auth.isAdmin)
+    .filter(
+      (section) =>
+        (!section.admin || auth.isAdmin) &&
+        (!section.notificationSettings || auth.canManageNotificationTypes),
+    )
     .map((section) => ({
       ...section,
       active: currentSection.value?.path === section.path,
       ariaCurrent: currentSection.value?.path === section.path ? ('page' as const) : undefined,
+      hasUnread: section.path === '/notifications' && notifications.unreadCount > 0,
     })),
 );
 const route = useRoute();
 const router = useRouter();
 const showPrototypeNotice = computed(
-  () => !route.meta.rentalRegistry && !route.path.startsWith('/admin') && route.path !== '/profile',
+  () =>
+    !route.meta.dashboard &&
+    !route.meta.notificationSettings &&
+    !route.meta.rentalRegistry &&
+    !route.meta.notifications &&
+    !route.meta.meterRegistry &&
+    !route.path.startsWith('/admin') &&
+    route.path !== '/profile' &&
+    route.path !== '/calendar',
 );
-const viewKey = computed(() => (route.meta.rentalRegistry ? route.path : undefined));
+const viewKey = computed(() =>
+  route.meta.rentalRegistry || route.meta.notifications || route.meta.meterRegistry
+    ? route.path
+    : undefined,
+);
 const sidebarOpen = ref(false);
 const sidebarElement = ref<HTMLElement | null>(null);
 const sidebarToggle = ref<HTMLButtonElement | null>(null);
@@ -53,7 +76,12 @@ const currentSection = computed(
       )
       .sort((left, right) => right.path.length - left.path.length)[0],
 );
-const primarySections = computed(() => visibleSections.value.filter((section) => !section.group));
+const primarySections = computed(() =>
+  visibleSections.value.filter((section) => !section.group && !section.notificationSettings),
+);
+const bottomSections = computed(() =>
+  visibleSections.value.filter((section) => section.notificationSettings),
+);
 const catalogueSections = computed(() =>
   visibleSections.value.filter((section) => section.group === 'catalogues'),
 );
@@ -64,24 +92,44 @@ function cataloguesToggled(event: Event) {
   cataloguesOpen.value = (event.target as HTMLDetailsElement).open;
 }
 
-const connectionLabel = computed(
-  () =>
-    ({ ready: 'Подключение установлено', error: 'Нет подключения', connecting: 'Подключение…' })[
-      connection.value
-    ],
+const apiLinkClass = computed(() =>
+  connection.value === 'ready' ? 'text-success' : 'text-danger',
 );
+let notificationTimer: ReturnType<typeof setInterval> | undefined;
+
+async function refreshNotifications() {
+  if (!auth.user || !navigator.onLine) return;
+
+  try {
+    await notifications.refresh();
+  } catch {
+    // A transient outage keeps the last known count; API handles session expiration.
+  }
+}
+
+let connectionTimer: ReturnType<typeof setInterval> | undefined;
+
+function connectionLost() {
+  connection.value = 'error';
+}
+
 const breadcrumbParent = computed(() =>
   currentSection.value?.group === 'catalogues' ? 'Справочники' : 'Рабочее пространство',
 );
 const breadcrumbTitle = computed(() =>
-  route.path === '/profile'
-    ? 'Мой профиль'
-    : (currentSection.value?.title ?? 'Страница не найдена'),
+  route.path.startsWith('/spaces/')
+    ? 'Помещения'
+    : route.path.startsWith('/unity-provider-contracts')
+      ? 'Договоры поставщиков'
+      : route.path === '/profile'
+        ? 'Мой профиль'
+        : (currentSection.value?.title ?? 'Страница не найдена'),
 );
 let searchControl: TomSelect | undefined;
-const desktopLayout = window.matchMedia('(min-width: 992px)');
-const closeDesktopNavigation = (event: MediaQueryListEvent) => {
-  if (event.matches) void setSidebarOpen(false);
+const events = useEvent();
+const { isDesktop } = useBrowserEvents();
+const closeDesktopNavigation = (matches: boolean) => {
+  if (matches) void setSidebarOpen(false);
 };
 
 async function loadRoles() {
@@ -105,13 +153,21 @@ async function signOut() {
 }
 
 async function checkConnection() {
-  connection.value = 'connecting';
+  if (!navigator.onLine) {
+    connectionLost();
+
+    return;
+  }
 
   try {
     const body = await api<unknown>('/api/healthz', { signal: AbortSignal.timeout(5000) }, false);
 
     connection.value =
-      typeof body === 'object' && body !== null && 'status' in body && body.status === 'ok'
+      navigator.onLine &&
+      typeof body === 'object' &&
+      body !== null &&
+      'status' in body &&
+      body.status === 'ok'
         ? 'ready'
         : 'error';
   } catch {
@@ -125,7 +181,7 @@ async function setSidebarOpen(open: boolean) {
   await nextTick();
 
   if (open) sidebarElement.value?.querySelector<HTMLAnchorElement>('nav a')?.focus();
-  else if (!desktopLayout.matches) sidebarToggle.value?.focus();
+  else if (!isDesktop()) sidebarToggle.value?.focus();
 }
 
 const removeNavigationListener = router.afterEach((to) => {
@@ -141,7 +197,7 @@ const removeNavigationListener = router.afterEach((to) => {
 });
 
 onMounted(() => {
-  desktopLayout.addEventListener('change', closeDesktopNavigation);
+  events.on('desktop-layout-changed', closeDesktopNavigation);
 
   if (searchElement.value) {
     searchControl = new TomSelect(searchElement.value, {
@@ -164,13 +220,26 @@ onMounted(() => {
     searchControl.control_input.setAttribute('aria-label', 'Найти раздел');
   }
 
+  events.on('browser-online', checkConnection);
+  events.on('browser-offline', connectionLost);
+  connectionTimer = setInterval(checkConnection, 30000);
   void checkConnection();
   void loadRoles();
+  void refreshNotifications();
+  notificationTimer = setInterval(refreshNotifications, 30000);
+  events.on('browser-focus', refreshNotifications);
+  events.on('browser-online', refreshNotifications);
 });
 
 onBeforeUnmount(() => {
+  clearInterval(connectionTimer);
+  clearInterval(notificationTimer);
+  events.off('browser-focus', refreshNotifications);
+  events.off('browser-online', refreshNotifications);
+  events.off('browser-online', checkConnection);
+  events.off('browser-offline', connectionLost);
   removeNavigationListener();
-  desktopLayout.removeEventListener('change', closeDesktopNavigation);
+  events.off('desktop-layout-changed', closeDesktopNavigation);
   searchControl?.destroy();
   document.body.classList.remove('navigation-open');
 });
@@ -240,6 +309,15 @@ onBeforeUnmount(() => {
           <span>
             {{ section.title }}
           </span>
+          <Badge
+            v-if="section.hasUnread"
+            class="ms-auto"
+            color="red"
+            pill
+            size="small"
+          >
+            {{ notifications.countLabel }}
+          </Badge>
         </RouterLink>
         <details
           class="workspace-nav-group"
@@ -277,6 +355,24 @@ onBeforeUnmount(() => {
             </span>
           </RouterLink>
         </details>
+        <RouterLink
+          v-for="section in bottomSections"
+          :key="section.path"
+          :to="section.path"
+          class="workspace-nav-link"
+          :class="{ active: section.active }"
+          :aria-current="section.ariaCurrent"
+        >
+          <component
+            :is="section.icon"
+            :size="21"
+            stroke="1.7"
+            aria-hidden="true"
+          />
+          <span>
+            {{ section.title }}
+          </span>
+        </RouterLink>
       </nav>
       <div
         class="sidebar-account"
@@ -359,6 +455,26 @@ onBeforeUnmount(() => {
             </select>
           </div>
           <RouterLink
+            to="/notifications"
+            class="btn btn-icon notification-bell"
+            :aria-label="notifications.accessibleLabel"
+            title="Уведомления"
+          >
+            <IconBell
+              :size="21"
+              stroke="1.7"
+            />
+            <Badge
+              v-if="notifications.unreadCount"
+              aria-hidden="true"
+              color="red"
+              pill
+              size="small"
+            >
+              {{ notifications.countLabel }}
+            </Badge>
+          </RouterLink>
+          <RouterLink
             v-if="auth.user"
             to="/profile"
             class="profile-link"
@@ -410,9 +526,9 @@ onBeforeUnmount(() => {
           v-if="showPrototypeNotice"
           class="prototype-notice"
         >
-          <span class="badge bg-blue-lt">
+          <Badge>
             Начальный интерфейс
-          </span>
+          </Badge>
           <span>
             Рабочие данные пока не подключены
           </span>
@@ -447,32 +563,21 @@ onBeforeUnmount(() => {
         <span>
           Land Lord Service ·
           <a
-            href="./help/users.html"
+            href="/help/users.html"
             target="_blank"
             rel="noopener"
           >
             Инструкция пользователя
           </a>
+          ·
           <a
-            class="text-success ms-2"
-            href="./server/api"
+            :class="apiLinkClass"
+            href="/server/api"
             target="_blank"
             rel="noopener"
           >
             API v0.1
           </a>
-        </span>
-        <span
-          class="connection-label"
-          role="status"
-        >
-          <span
-            class="connection-dot"
-            :class="connection"
-            aria-hidden="true"
-          >
-          </span>
-          {{ connectionLabel }}
         </span>
       </footer>
     </div>

@@ -11,8 +11,8 @@ Run on the Docker server from the prepared project checkout.
 --check          Validate prerequisites and Compose config without deploying.
 --help           Show this help.
 
-The deployment builds images, stops web writers, backs up the database and
-avatars, migrates the database and starts the application with a health check.
+The deployment builds images, stops web writers, backs up the database,
+avatars and contract files, migrates the database and starts the application with a health check.
 It does not fetch Git revisions, commit, restore backups or delete data.
 HELP
 }
@@ -56,7 +56,7 @@ if [ "$check_only" -eq 1 ]; then
     exit 0
 fi
 
-mkdir -p var/production/backups var/production/avatars
+mkdir -p var/production/backups var/production/avatars var/production/contract-files
 if ! mkdir var/production/deploy.lock 2>/dev/null; then
     printf 'Deployment lock exists: var/production/deploy.lock\n' >&2
     exit 1
@@ -71,7 +71,7 @@ cleanup() {
     if [ "$finished" -eq 0 ]; then
         printf 'Deployment failed; no automatic database rollback was attempted.\n' >&2
         if [ "$web_stopped" -eq 1 ]; then
-            compose stop nginx php >/dev/null 2>&1 || true
+            compose stop nginx php notifications >/dev/null 2>&1 || true
             printf 'Web services remain stopped to avoid a code/schema mismatch.\n' >&2
         fi
         if [ -n "$backup_dir" ]; then
@@ -100,9 +100,9 @@ while IFS= read -r container_id; do
 done < "$backup_dir/containers.txt" > "$backup_dir/images.txt"
 
 web_stopped=1
-compose stop nginx php
+compose stop nginx php notifications
 
-printf 'Backing up database and avatars...\n'
+printf 'Backing up database, avatars and contract files...\n'
 compose exec -T database sh -c \
     'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom' \
     > "$backup_dir/database.dump.partial"
@@ -110,9 +110,12 @@ mv "$backup_dir/database.dump.partial" "$backup_dir/database.dump"
 compose run --rm --no-deps -T --user root php \
     tar -C /app/var/avatars -czf - . > "$backup_dir/avatars.tar.gz.partial"
 mv "$backup_dir/avatars.tar.gz.partial" "$backup_dir/avatars.tar.gz"
+compose run --rm --no-deps -T --user root php \
+    tar -C /app/var/contract-files -czf - . > "$backup_dir/contract-files.tar.gz.partial"
+mv "$backup_dir/contract-files.tar.gz.partial" "$backup_dir/contract-files.tar.gz"
 
 compose run --rm --no-deps -T --user root php \
-    sh -c 'chown -R www-data:www-data /app/var/avatars && chmod 700 /app/var/avatars'
+    sh -c 'chown -R www-data:www-data /app/var/avatars /app/var/contract-files && chmod 700 /app/var/avatars /app/var/contract-files'
 
 printf 'Applying migrations...\n'
 compose run --rm --no-deps -T --user www-data php \
@@ -121,6 +124,8 @@ compose run --rm --no-deps -T --user www-data php \
 compose up -d --no-deps --force-recreate php
 compose exec -T --user www-data php php bin/console cache:clear --env=prod --no-debug
 compose up -d --no-deps --force-recreate --wait --wait-timeout 120 nginx
+
+compose up -d --no-deps --force-recreate notifications
 
 finished=1
 printf 'Deployment complete. Backup: %s\n' "$backup_dir"

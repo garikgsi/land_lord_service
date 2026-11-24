@@ -271,7 +271,7 @@ final class UserAccessTest extends WebTestCase
         $context = $mailer->message?->getContext() ?? [];
         $url = $context['resetUrl'] ?? '';
         $plain = substr($url, strrpos($url, '=') + 1);
-        self::assertSame([true, hash('sha256', $plain), ['mail@test.example']], [str_starts_with($url, 'https://landlord.example/#/reset-password?token='), $this->em()->getConnection()->fetchOne('SELECT tokenHash FROM password_resets'), array_map(static fn ($address) => $address->getAddress(), $mailer->message?->getTo() ?? [])]);
+        self::assertSame([true, hash('sha256', $plain), ['mail@test.example']], [str_starts_with($url, 'https://landlord.example/reset-password?token='), $this->em()->getConnection()->fetchOne('SELECT tokenHash FROM password_resets'), array_map(static fn ($address) => $address->getAddress(), $mailer->message?->getTo() ?? [])]);
     }
 
     public function testRecoveryRateLimitsRequests(): void

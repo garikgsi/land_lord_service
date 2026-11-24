@@ -14,6 +14,7 @@ final class ApplicationController extends AbstractController
 {
     #[Route('/', name: 'application', methods: ['GET'])]
     #[Route('/index.html', name: 'application_index', methods: ['GET'])]
+    #[Route('/{path}', name: 'application_frontend', requirements: ['path' => '(?!api(?:/|$)|server(?:/|$)|_)[^.]*'], methods: ['GET'], priority: -1000)]
     public function __invoke(
         Filesystem $filesystem,
         #[Autowire('%kernel.project_dir%/public/ui/index.html')]

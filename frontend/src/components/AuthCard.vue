@@ -36,7 +36,7 @@ defineProps<AuthCardProps>();
         Управление арендой и эксплуатацией
         <br />
         <a
-          href="./help/users.html"
+          href="/help/users.html"
           target="_blank"
           rel="noopener"
         >
@@ -44,7 +44,7 @@ defineProps<AuthCardProps>();
         </a>
         <a
           class="text-success ms-2"
-          href="./server/api"
+          href="/server/api"
           target="_blank"
           rel="noopener"
         >

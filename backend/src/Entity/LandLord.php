@@ -9,9 +9,16 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'land_lords')]
-class LandLord implements Colorable
+class LandLord implements Colorable, VersionedEntity
 {
-    use HasColor;
+    use HasDeletion;
+
+    use HasValidity;
+
+    public static function colorType(): string
+    {
+        return 'land_lord';
+    }
 
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]

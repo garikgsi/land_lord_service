@@ -94,4 +94,21 @@ final class LandLordController extends AbstractController
     {
         return $this->json($landLords->present($landLords->save($input, $record)));
     }
+
+    #[Route('/{id}', requirements: ['id' => '\\d+'], methods: ['DELETE'])]
+    #[IsGranted('RENTAL_REGISTRY_EDIT')]
+    #[OA\Delete(description: 'Ставит пометку удаления без физического удаления строки. Запись исчезает из рабочих списков; связи и история сохраняются.', summary: 'Пометить запись удалённой')]
+    #[OA\Response(response: 204, description: 'Поставлена пометка удаления')]
+    #[OA\Response(ref: '#/components/responses/Conflict', response: 409)]
+    #[OA\Response(ref: '#/components/responses/Forbidden', response: 403)]
+    public function remove(
+        #[MapEntity(id: 'id')]
+        LandLord $record,
+        LandLordService $records
+    ): \Symfony\Component\HttpFoundation\Response
+    {
+        $records->remove($record);
+
+        return new \Symfony\Component\HttpFoundation\Response(status: 204);
+    }
 }

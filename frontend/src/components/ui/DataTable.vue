@@ -1,6 +1,10 @@
 <script setup lang="ts" generic="T extends TableRecord">
-import { computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, shallowRef, ref } from 'vue';
+import { IconTrash } from '@tabler/icons-vue';
+import Pagination from './Pagination.vue';
+import DeleteConfirmModal from './DeleteConfirmModal.vue';
+import useApi from '../../use/api';
+import { useRoute, useRouter } from 'vue-router';
 import type {
   DataTableProps,
   DataTableSlots,
@@ -11,25 +15,91 @@ import type {
 const props = withDefaults(defineProps<DataTableProps<T>>(), {
   page: 1,
   pageSize: 20,
+  clientPagination: undefined,
   emptyText: 'Записи не найдены.',
 });
-const emit = defineEmits<{ pageChange: [page: number] }>();
+const emit = defineEmits<{ pageChange: [page: number]; deleted: [row: T] }>();
 
 defineSlots<DataTableSlots<T>>();
 const router = useRouter();
-const pages = computed(() => Math.max(1, Math.ceil((props.total ?? 0) / props.pageSize)));
+const route = useRoute();
+const selected = shallowRef<T | null>(null);
+const deleting = ref(false);
+const deleteError = ref('');
+const { api, errorText } = useApi();
+const localPage = ref(1);
+const clientPagination = computed(() => props.clientPagination ?? props.total === undefined);
+const totalCount = computed(() =>
+  clientPagination.value ? props.rows.length : (props.total ?? 0),
+);
+const pages = computed(() => Math.max(1, Math.ceil(totalCount.value / props.pageSize)));
+const currentPage = computed(() =>
+  clientPagination.value ? Math.min(localPage.value, pages.value) : props.page,
+);
+const visibleRows = computed(() =>
+  clientPagination.value
+    ? props.rows.slice((currentPage.value - 1) * props.pageSize, currentPage.value * props.pageSize)
+    : props.rows,
+);
+const columnCount = computed(() => props.columns.length + (props.deleteEndpoint ? 1 : 0));
+const selectedName = computed(() =>
+  selected.value && 'name' in selected.value
+    ? String(selected.value.name)
+    : selected.value && 'contractNum' in selected.value
+      ? String(selected.value.contractNum)
+      : String(selected.value?.id ?? ''),
+);
+
+function requestDelete(row: T) {
+  selected.value = row;
+  deleteError.value = '';
+}
+
+function cancelDelete() {
+  if (!deleting.value) selected.value = null;
+}
+
+async function remove() {
+  if (!selected.value || !props.deleteEndpoint || deleting.value) return;
+
+  const row = selected.value;
+
+  deleting.value = true;
+  deleteError.value = '';
+
+  try {
+    await api(props.deleteEndpoint + '/' + row.id, { method: 'DELETE' });
+    selected.value = null;
+    emit('deleted', row);
+  } catch (e) {
+    deleteError.value = errorText(e);
+  } finally {
+    deleting.value = false;
+  }
+}
+
 const emptyMessage = computed(() =>
   props.error ? 'Не удалось загрузить данные.' : props.emptyText,
 );
 const tableRows = computed(() =>
-  props.rows.map((record) => ({
+  visibleRows.value.map((record) => ({
     record,
     key: record.id,
-    clickable: !!props.rowRoute && !props.loading,
-    tabIndex: props.rowRoute && !props.loading ? 0 : undefined,
-    label: props.rowRoute ? (props.rowLabel?.(record) ?? 'Открыть карточку записи') : undefined,
+    clickable: !!(props.rowRoute || props.rowAction) && !props.loading,
+    tabIndex: (props.rowRoute || props.rowAction) && !props.loading ? 0 : undefined,
+    label:
+      props.rowRoute || props.rowAction
+        ? (props.rowLabel?.(record) ?? 'Открыть карточку записи')
+        : undefined,
   })),
 );
+
+function changePage(value: number) {
+  if (props.loading || value < 1 || value > pages.value) return;
+
+  if (clientPagination.value) localPage.value = value;
+  else emit('pageChange', value);
+}
 
 function cellValue(row: T, column: TableColumn<T>) {
   if (column.value) return column.value(row);
@@ -42,9 +112,23 @@ function cellValue(row: T, column: TableColumn<T>) {
 }
 
 function openRow(row: T) {
-  if (props.loading || !props.rowRoute) return;
+  if (props.loading) return;
 
-  void router.push(props.rowRoute(row));
+  if (props.rowAction) {
+    props.rowAction(row);
+
+    return;
+  }
+
+  if (!props.rowRoute) return;
+
+  const target = router.resolve(props.rowRoute(row));
+
+  void router.push({
+    path: target.path,
+    query: { ...target.query, returnTo: route.fullPath },
+    hash: target.hash,
+  });
 }
 
 function rowClicked(event: MouseEvent, row: T) {
@@ -117,6 +201,13 @@ function rowKeydown(event: KeyboardEvent, row: T) {
           >
             {{ column.label }}
           </th>
+          <th
+            v-if="deleteEndpoint"
+            scope="col"
+            class="w-1"
+          >
+            Действия
+          </th>
         </tr>
       </thead>
       <tbody role="rowgroup">
@@ -147,10 +238,30 @@ function rowKeydown(event: KeyboardEvent, row: T) {
               </slot>
             </div>
           </td>
+          <td
+            v-if="deleteEndpoint"
+            data-label="Действия"
+            class="text-end"
+          >
+            <button
+              type="button"
+              class="btn btn-sm btn-icon text-danger"
+              v-if="!deleteAllowed || deleteAllowed(entry.record)"
+              aria-label="Удалить запись"
+              title="Удалить"
+              :disabled="loading || deleting"
+              @click.stop="requestDelete(entry.record)"
+            >
+              <IconTrash
+                :size="18"
+                aria-hidden="true"
+              />
+            </button>
+          </td>
         </tr>
         <tr v-if="loading">
           <td
-            :colspan="columns.length"
+            :colspan="columnCount"
             class="text-center text-secondary py-4"
             role="status"
           >
@@ -159,7 +270,7 @@ function rowKeydown(event: KeyboardEvent, row: T) {
         </tr>
         <tr v-else-if="!rows.length">
           <td
-            :colspan="columns.length"
+            :colspan="columnCount"
             class="text-center text-secondary py-5"
           >
             <slot name="empty">
@@ -170,30 +281,24 @@ function rowKeydown(event: KeyboardEvent, row: T) {
       </tbody>
     </table>
   </div>
-  <div
-    v-if="total !== undefined"
-    class="card-footer d-flex align-items-center justify-content-between flex-wrap gap-2"
-  >
+  <div class="card-footer d-flex align-items-center justify-content-between flex-wrap gap-2">
     <span class="text-secondary">
-      Всего: {{ total }} · Страница {{ page }} из {{ pages }}
+      Всего: {{ totalCount }} · Страница {{ currentPage }} из {{ pages }}
     </span>
-    <div class="d-flex gap-2">
-      <button
-        type="button"
-        class="btn btn-sm"
-        :disabled="loading || page <= 1"
-        @click="emit('pageChange', page - 1)"
-      >
-        Назад
-      </button>
-      <button
-        type="button"
-        class="btn btn-sm"
-        :disabled="loading || page >= pages"
-        @click="emit('pageChange', page + 1)"
-      >
-        Далее
-      </button>
-    </div>
+    <Pagination
+      :page="currentPage"
+      :pages="pages"
+      :disabled="loading"
+      @change="changePage"
+    />
   </div>
+  <DeleteConfirmModal
+    v-if="selected"
+    :item-name="selectedName"
+    message="Запись будет помечена удалённой. Данные сохранятся."
+    :busy="deleting"
+    :error="deleteError"
+    @cancel="cancelDelete"
+    @confirm="remove"
+  />
 </template>

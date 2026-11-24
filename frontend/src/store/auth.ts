@@ -3,6 +3,7 @@ import { defineStore } from 'pinia';
 import useApi from '../use/api.ts';
 import useEvent from '../use/event.ts';
 import { useRolesStore } from './roles.ts';
+import { useNotificationsStore } from './notifications.ts';
 import type { User } from '../types/models/User';
 import type { AuthSession, StoredSession } from '../types/api/Auth';
 
@@ -19,6 +20,21 @@ export const useAuthStore = defineStore('auth', () => {
   const canManageRentalRegistry = computed(
     () => isAdmin.value || (user.value?.roles.includes('ROLE_LAWYER') ?? false),
   );
+  const canManageNotificationTypes = computed(
+    () => isAdmin.value || (user.value?.roles.includes('ROLE_DIRECTOR') ?? false),
+  );
+  const canViewLegalDashboard = computed(
+    () => canManageRentalRegistry.value || (user.value?.roles.includes('ROLE_DIRECTOR') ?? false),
+  );
+  const canManageMeters = computed(() => isAdmin.value);
+  const canEditMeterReadings = computed(
+    () => isAdmin.value || (user.value?.roles.includes('ROLE_TECHNICIAN') ?? false),
+  );
+
+  const canInstallMeters = computed(
+    () => isAdmin.value || (user.value?.roles.includes('ROLE_TECHNICIAN') ?? false),
+  );
+
   // Keep credentials out of Pinia state and the development tools.
   let token: string | null = null;
   let initialization: Promise<void> | undefined;
@@ -31,6 +47,7 @@ export const useAuthStore = defineStore('auth', () => {
     sessionStorage.removeItem(storageKey);
     setToken(null);
     useRolesStore().reset();
+    useNotificationsStore().reset();
   }
 
   events.on('session-expired', clear);
@@ -98,5 +115,19 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { user, isAdmin, isSuperAdmin, canManageRentalRegistry, initialize, login, logout, clear };
+  return {
+    user,
+    isAdmin,
+    isSuperAdmin,
+    canManageRentalRegistry,
+    canManageMeters,
+    canManageNotificationTypes,
+    canViewLegalDashboard,
+    canEditMeterReadings,
+    canInstallMeters,
+    initialize,
+    login,
+    logout,
+    clear,
+  };
 });

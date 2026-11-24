@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import Badge from '../components/ui/Badge.vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRoute } from 'vue-router';
 import { IconPlus } from '@tabler/icons-vue';
 import useApi from '../use/api';
 import { useAuthStore } from '../store/auth';
@@ -13,6 +14,7 @@ import type { User } from '../types/models/User';
 import type { UserList } from '../types/api/User';
 import type { MessageResponse } from '../types/use/Api';
 
+const route = useRoute();
 const auth = useAuthStore();
 const roles = useRolesStore();
 const { api, errorText } = useApi();
@@ -24,16 +26,22 @@ const query = ref('');
 const state = ref('all');
 const loading = ref(false);
 const error = ref('');
-const notice = ref('');
+const notice = ref(
+  route.query.created === '1'
+    ? route.query.invitation === 'failed'
+      ? 'Пользователь создан, но приглашение не отправлено. Повторите отправку из списка.'
+      : 'Пользователь создан. Приглашение отправлено.'
+    : '',
+);
 const mailingId = ref<number | null>(null);
-const noticeWarning = ref(false);
+const noticeWarning = ref(route.query.created === '1' && route.query.invitation === 'failed');
 const noticeClass = computed(() => (noticeWarning.value ? 'alert-warning' : 'alert-success'));
 const rows = computed<UserTableRow[]>(() =>
   items.value.map((user) => ({
     ...user,
     fullName: [user.firstName, user.lastName].filter(Boolean).join(' '),
     statusLabel: user.blocked ? 'Заблокирован' : user.active ? 'Активен' : 'Ожидает активации',
-    statusClass: user.blocked ? 'bg-red-lt' : user.active ? 'bg-green-lt' : 'bg-yellow-lt',
+    statusColor: user.blocked ? 'red' : user.active ? 'green' : 'yellow',
     invitationLabel: mailingId.value === user.id ? 'Отправляем…' : 'Отправить приглашение повторно',
   })),
 );
@@ -157,9 +165,6 @@ onBeforeUnmount(() => {
 <template>
   <div class="page-heading">
     <div>
-      <div class="page-pretitle">
-        Администрирование
-      </div>
       <h1>
         Пользователи
       </h1>
@@ -248,7 +253,7 @@ onBeforeUnmount(() => {
         >
           <IconPlus :size="19" />
           <span class="list-add-label">
-            Добавить пользователя
+            Добавить
           </span>
         </RouterLink>
       </template>
@@ -278,14 +283,14 @@ onBeforeUnmount(() => {
           </div>
         </template>
         <template v-else-if="column.key === 'roles'">
-          <span
+          <Badge
             v-for="role in user.roles"
             :key="role"
-            class="badge me-1 mb-1"
-            :class="roles.colors[role]"
+            class="me-1 mb-1"
+            :color="roles.colors[role]"
           >
             {{ roles.labels[role] ?? role }}
-          </span>
+          </Badge>
           <span
             v-if="!user.roles.length"
             class="text-secondary"
@@ -294,12 +299,9 @@ onBeforeUnmount(() => {
           </span>
         </template>
         <template v-else-if="column.key === 'active'">
-          <span
-            class="badge"
-            :class="user.statusClass"
-          >
+          <Badge :color="user.statusColor">
             {{ user.statusLabel }}
-          </span>
+          </Badge>
         </template>
         <template v-else>
           <div class="user-actions">

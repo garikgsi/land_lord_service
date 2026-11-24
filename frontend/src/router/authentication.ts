@@ -13,6 +13,14 @@ export function configureAuthentication(router: Router, pinia: Pinia) {
 
     if (to.meta.rentalRegistryEdit && !auth.canManageRentalRegistry) return '/objects';
 
+    if (to.meta.meterInstall && !auth.canInstallMeters) return '/meters';
+
+    if (to.meta.meterReadingEdit && !auth.canEditMeterReadings) return '/meters';
+
+    if (to.meta.meterEdit && !auth.canManageMeters) return '/meters';
+
+    if (to.meta.notificationSettings && !auth.canManageNotificationTypes) return '/';
+
     if (to.meta.admin && !auth.isAdmin) return '/';
 
     if (to.path === '/login' && auth.user) return '/';

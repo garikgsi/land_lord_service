@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\EventListener;
 
+use App\Exception\InputException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -32,7 +33,7 @@ final class ApiExceptionListener
         if (Response::HTTP_SERVICE_UNAVAILABLE === $status) {
             $message = 'Отправка почты пока не настроена или временно недоступна. Обратитесь к администратору.';
         }
-        $errors = [];
+        $errors = $exception instanceof InputException ? $exception->errors : [];
         $previous = $exception->getPrevious();
         if ($previous instanceof ValidationFailedException) {
             foreach ($previous->getViolations() as $violation) {

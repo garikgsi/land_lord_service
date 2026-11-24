@@ -49,7 +49,7 @@ final class DomainModelTest extends KernelTestCase
             $end = new \DateTimeImmutable('2026-11-30');
             $contract = new Contract($space, $renter, $landLord, $em->find(ContractType::class, 1), '0', $end, $start, 'N1', '10000.12345678901234567890123456789');
             $unity = new Unity('Вода', true);
-            $provider = new UnityProvider($unity, 'Поставщик');
+            $provider = new UnityProvider('Поставщик');
             $meter = new Meter($unity, $start, 100, 365);
             $spaceMeter = new Meter($unity, $start, 0, 365);
             $reading = new MeterReading($meter, new \DateTimeImmutable('2026-11-20 12:00:00'), 150);
@@ -59,7 +59,7 @@ final class DomainModelTest extends KernelTestCase
                 $author, $landLord, $object, $space, $renter, $contract, $unity,
                 $provider, $meter, $spaceMeter, $reading, $accrual, $correction,
                 new RenterContact($renter, 'Имя'),
-                new ObjectUnityProvider($provider, $object),
+                new ObjectUnityProvider($provider, $object, $unity),
                 new ObjectMeter($object, $meter),
                 new SpaceMeter($space, $spaceMeter),
                 new MeterVerification($meter, $start),

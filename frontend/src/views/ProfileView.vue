@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Badge from '../components/ui/Badge.vue';
 import { RouterLink } from 'vue-router';
 import { useAuthStore } from '../store/auth';
 import { useRolesStore } from '../store/roles';
@@ -11,9 +12,6 @@ const roles = useRolesStore();
 <template>
   <div class="page-heading">
     <div>
-      <div class="page-pretitle">
-        Учётная запись
-      </div>
       <h1>
         Мой профиль
       </h1>
@@ -63,14 +61,14 @@ const roles = useRolesStore();
           Роли
         </dt>
         <dd class="col-sm-9">
-          <span
+          <Badge
             v-for="role in auth.user.roles"
             :key="role"
-            class="badge me-2 mb-2"
-            :class="roles.colors[role]"
+            class="me-2 mb-2"
+            :color="roles.colors[role]"
           >
             {{ roles.labels[role] ?? role }}
-          </span>
+          </Badge>
           <span v-if="!auth.user.roles.length">
             Не назначены
           </span>

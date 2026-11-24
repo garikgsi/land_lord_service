@@ -19,7 +19,7 @@ export const useRolesStore = defineStore('roles', () => {
       Object.fromEntries(
         items.value.map((role) => [
           role.code,
-          role.code === 'ROLE_SUPER_ADMIN' ? 'bg-purple-lt' : 'bg-blue-lt',
+          role.code === 'ROLE_SUPER_ADMIN' ? 'purple' : 'azure',
         ]),
       ) as Partial<Record<Role, string>>,
   );

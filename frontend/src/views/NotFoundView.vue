@@ -1,8 +1,5 @@
 <template>
   <div class="card register-empty">
-    <div class="page-pretitle">
-      404
-    </div>
     <h1>
       Страница не найдена
     </h1>

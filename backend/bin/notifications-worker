@@ -1,0 +1,13 @@
+#!/bin/sh
+set -u
+
+cd /app
+trap 'exit 0' TERM INT
+
+# Each iteration is independent. A migration/startup outage is retried next minute.
+while :; do
+    php bin/console app:notifications:generate --no-interaction || true
+    php bin/console app:notifications:deliver --no-interaction || true
+    sleep 60 &
+    wait "$!"
+done

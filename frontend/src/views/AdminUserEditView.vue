@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import FormBackButton from '../components/ui/FormBackButton.vue';
+import Badge from '../components/ui/Badge.vue';
+import useCreateNavigation from '../use/createNavigation';
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import {
   RouterLink,
@@ -10,6 +13,7 @@ import {
 import { IconArrowLeft, IconTrash } from '@tabler/icons-vue';
 import EmailInput from '../components/ui/EmailInput.vue';
 import PhoneInput from '../components/ui/PhoneInput.vue';
+import DeleteConfirmModal from '../components/ui/DeleteConfirmModal.vue';
 import UserAvatar from '../components/UserAvatar.vue';
 import { useAuthStore } from '../store/auth';
 import { useRolesStore } from '../store/roles';
@@ -23,6 +27,7 @@ import type { Role } from '../types/models/Role';
 import type { UserSaveResponse } from '../types/api/User';
 import type { UserFormDraft } from '../types/forms/User';
 
+const { returnAfterCreate, returnAfterSave } = useCreateNavigation();
 const auth = useAuthStore();
 const roles = useRolesStore();
 const route = useRoute();
@@ -38,6 +43,7 @@ const notice = ref('');
 const noticeWarning = ref(false);
 const noticeClass = computed(() => (noticeWarning.value ? 'alert-warning' : 'alert-success'));
 const avatarBusy = ref(false);
+const avatarDeleteOpen = ref(false);
 const avatarError = ref('');
 const avatarNotice = ref('');
 const avatarPreview = ref<string | null>(null);
@@ -171,10 +177,6 @@ onBeforeRouteUpdate(async (to) => {
   await load(to.params.id, to.query);
 });
 
-async function close() {
-  if (!saving.value && !avatarBusy.value) await router.push('/admin/users');
-}
-
 async function chooseAvatar(event: Event) {
   const input = event.target as HTMLInputElement;
   const chosen = input.files?.[0];
@@ -219,6 +221,11 @@ async function chooseAvatar(event: Event) {
   }
 }
 
+function requestAvatarDelete() {
+  avatarError.value = '';
+  avatarDeleteOpen.value = true;
+}
+
 async function deleteAvatar() {
   if (!selected.value || avatarBusy.value) return;
 
@@ -233,6 +240,7 @@ async function deleteAvatar() {
     if (auth.user?.id === selected.value.id) auth.user = { ...auth.user, avatarUrl: null };
 
     avatarNotice.value = 'Фото удалено.';
+    avatarDeleteOpen.value = false;
   } catch (e) {
     avatarError.value = errorText(e);
   } finally {
@@ -273,15 +281,17 @@ async function save() {
 
     if (wasCreating) {
       saving.value = false;
-      await router.replace({
-        path: '/admin/users/' + saved.id,
-        query: { created: '1', invitation: saved.invitationSent === false ? 'failed' : 'sent' },
+      await returnAfterCreate('/admin/users', {
+        created: '1',
+        invitation: saved.invitationSent === false ? 'failed' : 'sent',
       });
     } else {
       noticeWarning.value = pendingLinkChanged;
       notice.value = pendingLinkChanged
         ? 'Данные сохранены. Для активации отправьте приглашение повторно из списка пользователей.'
         : 'Изменения сохранены.';
+      saving.value = false;
+      await returnAfterSave();
     }
   } catch (e) {
     if (e instanceof ApiError && e.status === 422) {
@@ -304,9 +314,6 @@ onBeforeUnmount(() => {
 <template>
   <div class="page-heading">
     <div>
-      <div class="page-pretitle">
-        Администрирование
-      </div>
       <h1>
         {{ pageTitle }}
       </h1>
@@ -425,7 +432,7 @@ onBeforeUnmount(() => {
                 v-if="selected?.avatarUrl"
                 type="button"
                 class="btn btn-sm btn-outline-danger mt-2"
-                @click="deleteAvatar"
+                @click="requestAvatarDelete"
               >
                 <IconTrash :size="16" />
                 Удалить фото
@@ -551,9 +558,16 @@ onBeforeUnmount(() => {
                   type="checkbox"
                   class="form-check-input"
                 />
-                <span
+                <Badge
+                  v-if="role.code === 'ROLE_SUPER_ADMIN'"
+                  color="purple"
                   class="form-check-label"
-                  :class="{ 'badge bg-purple-lt': role.code === 'ROLE_SUPER_ADMIN' }"
+                >
+                  {{ role.label }}
+                </Badge>
+                <span
+                  v-else
+                  class="form-check-label"
                 >
                   {{ role.label }}
                 </span>
@@ -594,23 +608,26 @@ onBeforeUnmount(() => {
           >
             При изменении своей почты или ролей потребуется войти снова.
           </p>
-          <div class="d-flex justify-content-end gap-2 mt-4">
-            <button
-              type="button"
-              class="btn"
-              @click="close"
-            >
-              Отмена
-            </button>
+          <div class="d-flex flex-wrap gap-2 mt-4">
             <button
               class="btn btn-primary"
               :disabled="!canSave"
             >
               {{ saveLabel }}
             </button>
+            <FormBackButton to="/admin/users" />
           </div>
         </fieldset>
       </form>
     </section>
   </template>
+  <DeleteConfirmModal
+    v-if="avatarDeleteOpen"
+    title="Удалить фото?"
+    message="Фотография профиля будет удалена."
+    :busy="avatarBusy"
+    :error="avatarError"
+    @confirm="deleteAvatar"
+    @cancel="avatarDeleteOpen = false"
+  />
 </template>

@@ -240,3 +240,31 @@ Python нужен только для тестов скрипта, не для �
 Подход основан на официальной документации
 [Docker Compose для production](https://docs.docker.com/compose/how-tos/production/)
 и [публикации Symfony](https://symfony.com/doc/current/deployment.html).
+
+## Вложения договоров
+
+Вложения находятся в `var/production/contract-files`, смонтированном в PHP как
+`/app/var/contract-files`. Их нельзя хранить только в файловой системе образа.
+Обновлённый `bin/deploy` создаёт каталог, архив `contract-files.tar.gz` рядом
+с дампом и архивом аватаров, затем настраивает права для www-data.
+Для восстановления нужны согласованные данные БД, аватары и вложения договоров.
+Скачивание вложений проходит через API с авторизацией; Nginx не публикует каталог.
+
+## Фоновые уведомления
+
+Сервис Compose `notifications` использует тот же production-образ PHP. Скрипт
+`bin/deploy` останавливает его до дампа и миграций и запускает после готовности web.
+При сбое обновления worker остаётся остановленным вместе с web. На хосте cron
+не требуется: генерация и обработка очереди выполняются раз в минуту.
+По умолчанию включён только DB-канал. Для email добавьте в production env:
+
+```dotenv
+NOTIFICATION_CHANNELS=db,email
+NOTIFICATION_EMAIL_ENABLED=1
+```
+
+Также нужны реальные MAILER_DSN и MAIL_FROM. Для push пока нет провайдера и
+регистрации устройств; включение имени канала само по себе push не отправит.
+После настройки отложенного канала очередь можно повторить командой
+`php bin/console app:notifications:deliver --retry-deferred` внутри PHP-контейнера.
+Подробнее о повторных попытках и личном доступе: [notifications.md](notifications.md).

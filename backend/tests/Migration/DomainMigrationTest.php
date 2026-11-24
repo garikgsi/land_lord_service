@@ -40,6 +40,102 @@ final class DomainMigrationTest extends KernelTestCase
         parent::tearDown();
     }
 
+    public function testObjectSupplierMigrationPreservesIdsAndLegacyVersionsAndCanBeReapplied(): void
+    {
+        $this->migrate('DomainMigrations\\Version20261121160000');
+        $this->fixtures();
+        $provider = $this->connection->fetchAssociative('SELECT id, unity_id FROM unity_providers LIMIT 1');
+        $linkId = $this->connection->fetchOne('SELECT id FROM object_unity_providers WHERE unity_provider_id = ?', [$provider['id']]);
+        $this->connection->executeStatement("UPDATE unity_providers SET name = 'Renamed supplier' WHERE id = ?", [$provider['id']]);
+        $before = $this->connection->fetchAllAssociative('SELECT * FROM unity_providers_history WHERE id = ? ORDER BY valid_to', [$provider['id']]);
+        $this->migrate('DomainMigrations\\Version20261121170000');
+        $mapped = $this->connection->fetchAssociative('SELECT id, unity_id FROM object_unity_providers WHERE id = ?', [$linkId]);
+        $after = $this->connection->fetchAllAssociative('SELECT * FROM unity_providers_history WHERE id = ? ORDER BY valid_to', [$provider['id']]);
+        $this->migrate('DomainMigrations\\Version20261121160000');
+        $restored = $this->connection->fetchOne('SELECT unity_id FROM unity_providers WHERE id = ?', [$provider['id']]);
+        $this->migrate('DomainMigrations\\Version20261121170000');
+
+        self::assertSame([$linkId, $provider['unity_id'], true, $provider['unity_id']], [$mapped['id'], $mapped['unity_id'], $before === $after, $restored]);
+    }
+
+    public function testMeterVersionMigrationPreservesLegacyVerificationsAndRollback(): void
+    {
+        $this->migrate('DomainMigrations\\Version20261121150000');
+        $this->fixtures();
+        $id = $this->connection->fetchOne('SELECT id FROM meters WHERE start_read = 120');
+        $this->migrate('DomainMigrations\\Version20261121160000');
+        $dates = $this->connection->fetchFirstColumn('SELECT verification_date FROM meter_verifications WHERE meter_id = ?', [$id]);
+        $this->connection->executeStatement("UPDATE meters SET serial_number = 'Changed' WHERE id = ?", [$id]);
+        $old = $this->connection->fetchAssociative('SELECT serial_number, valid_from, valid_to FROM meters_history WHERE id = ?', [$id]);
+        $current = $this->connection->fetchOne('SELECT valid_from FROM meters WHERE id = ?', [$id]);
+        $this->migrate('DomainMigrations\\Version20261121150000');
+        $this->migrate('DomainMigrations\\Version20261121160000');
+        $after = $this->connection->fetchFirstColumn('SELECT verification_date FROM meter_verifications WHERE meter_id = ?', [$id]);
+
+        self::assertSame([['2026-01-01'], null, null, true, ['2026-01-01']], [$dates, $old['serial_number'], $old['valid_from'], $old['valid_to'] === $current, $after]);
+    }
+
+    public function testNotificationMigrationPreservesUsersAndSupportsRollbackAndReapply(): void
+    {
+        $this->migrate('DomainMigrations\\Version20261121140000');
+        $userId = $this->connection->fetchOne("INSERT INTO users (email, password, roles, blocked, active, createdat) VALUES ('notifications@test.example', '', '[]', false, false, CURRENT_TIMESTAMP) RETURNING id");
+        $users = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM users');
+        $this->migrate('DomainMigrations\\Version20261121150000');
+        $id = $this->connection->fetchOne("INSERT INTO notifications (user_id, kind, title, message, due_date, created_at) VALUES (?, 'test', 'Title', 'Body', '2027-03-31', '2027-02-28 00:00:00') RETURNING id", [$userId]);
+        $this->connection->executeStatement("INSERT INTO notification_deliveries (notification_id, channel, status, attempt_count, next_attempt_at) VALUES (?, 'db', 'sent', 0, '2027-02-28')", [$id]);
+        $due = $this->connection->fetchOne('SELECT due_date FROM notifications WHERE id = ?', [$id]);
+        $this->migrate('DomainMigrations\\Version20261121140000');
+        $after = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM users');
+        $this->migrate('DomainMigrations\\Version20261121150000');
+
+        self::assertSame(['2027-03-31', true, 0], [$due, $users === $after, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM notifications')]);
+    }
+
+    public function testPolymorphicColourMigrationPreservesValuesWindowsAndRollback(): void
+    {
+        $this->migrate('DomainMigrations\\Version20261120140000');
+        $id = $this->connection->fetchOne("INSERT INTO land_lords (name, color) VALUES ('Legacy', '#12abef') RETURNING id");
+        $this->migrate('DomainMigrations\\Version20261121120000');
+        $this->connection->executeStatement("UPDATE land_lords SET color = '#d63939' WHERE id = ?", [$id]);
+        $this->connection->executeStatement("UPDATE land_lords SET name = 'Renamed' WHERE id = ?", [$id]);
+        $before = $this->connection->fetchAllAssociative('SELECT id, name, color, valid_from, valid_to FROM land_lords_history WHERE id = ? ORDER BY valid_to', [$id]);
+        $this->migrate('DomainMigrations\\Version20261121140000');
+        $color = $this->connection->fetchOne("SELECT color FROM entity_colors WHERE entity_type = 'land_lord' AND entity_id = ?", [$id]);
+        $this->migrate('DomainMigrations\\Version20261121130000');
+        $restored = $this->connection->fetchAllAssociative('SELECT id, name, color, valid_from, valid_to FROM land_lords_history WHERE id = ? ORDER BY valid_to', [$id]);
+        $this->migrate('DomainMigrations\\Version20261121140000');
+        $this->connection->executeStatement("UPDATE entity_colors SET color = NULL WHERE entity_type = 'land_lord' AND entity_id = ?", [$id]);
+        $this->migrate('DomainMigrations\\Version20261121130000');
+        $reset = $this->connection->fetchOne('SELECT color FROM land_lords WHERE id = ?', [$id]);
+        $historical = $this->connection->fetchFirstColumn('SELECT color FROM land_lords_history WHERE id = ? ORDER BY valid_to', [$id]);
+        $this->migrate('DomainMigrations\\Version20261121140000');
+
+        self::assertSame(
+            ['#d63939', true, null, ['#12abef', '#d63939', '#d63939']],
+            [$color, $before === $restored, $reset, $historical]
+        );
+    }
+
+    public function testSnapshotMigrationPreservesLegacyRowsAndCanBeReapplied(): void
+    {
+        $this->migrate('DomainMigrations\\Version20261120140000');
+        $id = $this->connection->fetchOne("INSERT INTO land_lords (name) VALUES ('Legacy') RETURNING id");
+        $this->migrate('DomainMigrations\\Version20261121120000');
+        $legacy = $this->connection->fetchOne('SELECT valid_from FROM land_lords WHERE id = ?', [$id]);
+        $this->connection->executeStatement("UPDATE land_lords SET name = 'Changed' WHERE id = ?", [$id]);
+        $old = $this->connection->fetchAssociative('SELECT name, valid_from, valid_to FROM land_lords_history WHERE id = ?', [$id]);
+        $current = $this->connection->fetchOne('SELECT valid_from FROM land_lords WHERE id = ?', [$id]);
+        $this->migrate('DomainMigrations\\Version20261120140000');
+        $kept = $this->connection->fetchOne('SELECT name FROM land_lords WHERE id = ?', [$id]);
+        $this->migrate('DomainMigrations\\Version20261121120000');
+
+        self::assertSame(
+            [null, 'Legacy', null, true, 'Changed', 0],
+            [$legacy, $old['name'], $old['valid_from'], $old['valid_to'] === $current, $kept,
+                (int) $this->connection->fetchOne('SELECT COUNT(*) FROM land_lords_history')]
+        );
+    }
+
     public function testLandLordColorMigrationPreservesRecordsAndCanBeReapplied(): void
     {
         $this->migrate('DomainMigrations\\Version20261120130000');

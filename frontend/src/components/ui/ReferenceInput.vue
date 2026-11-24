@@ -9,7 +9,10 @@ import type {
 import type { ReferenceOption } from '../../types/components/ui/ReferenceInput';
 import type { RegistryList } from '../../types/api/Registry';
 
-const props = defineProps<ReferenceInputProps>();
+const props = withDefaults(defineProps<ReferenceInputProps>(), {
+  required: true,
+  validateOnBlur: true,
+});
 const model = defineModel<number | null>({ default: null });
 const element = ref<HTMLSelectElement | null>(null);
 const loadingError = ref('');
@@ -18,7 +21,7 @@ const message = computed(
   () =>
     props.error ||
     loadingError.value ||
-    (touched.value && !model.value ? 'Выберите арендодателя.' : ''),
+    (props.required && touched.value && !model.value ? 'Выберите значение.' : ''),
 );
 const errorId = computed(() => props.id + '-error');
 const { api, errorText } = useApi();
@@ -66,9 +69,14 @@ onMounted(() => {
     searchField: ['name'],
     maxItems: 1,
     create: false,
+    allowEmptyOption: !props.required,
     preload: 'focus',
-    placeholder: 'Найдите и выберите арендодателя',
-    options: props.initial ? [props.initial] : [],
+    placeholder: props.placeholder ?? 'Найдите и выберите',
+    options: [
+      ...(!props.required ? [{ id: '', name: props.placeholder ?? 'Не выбрано' }] : []),
+      ...(props.extraOptions ?? []),
+      ...(props.initial ? [props.initial] : []),
+    ],
     items: model.value ? [String(model.value)] : [],
     shouldLoad: () => true,
     render: {
@@ -85,7 +93,9 @@ onMounted(() => {
 
       try {
         const result = await api<RegistryList<ReferenceOption>>(
-          props.endpoint + '?' + new URLSearchParams({ query }),
+          props.endpoint +
+            (props.endpoint.includes('?') ? '&' : '?') +
+            new URLSearchParams({ query }),
           { signal: current.signal },
         );
 
@@ -97,7 +107,7 @@ onMounted(() => {
       }
     },
     onBlur() {
-      touched.value = true;
+      if (props.validateOnBlur) touched.value = true;
     },
     onChange(value: string) {
       model.value = value ? Number(value) : null;
@@ -121,19 +131,24 @@ onBeforeUnmount(() => {
   >
     {{ label }}
     <span
+      v-if="required"
       class="text-danger"
       aria-hidden="true"
     >
       *
     </span>
   </label>
-  <select
-    :id="id"
-    ref="element"
-    :disabled="disabled"
-    class="form-select reference-select"
-  >
-  </select>
+  <div :class="{ 'input-group': $slots.append }">
+    <select
+      :id="id"
+      ref="element"
+      :disabled="disabled"
+      class="form-select reference-select"
+    >
+    </select>
+    <slot name="append">
+    </slot>
+  </div>
   <div
     :id="errorId"
     class="invalid-feedback"

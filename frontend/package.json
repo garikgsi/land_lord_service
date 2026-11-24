@@ -11,7 +11,7 @@
     "typecheck": "vue-tsc --noEmit",
     "build": "npm run typecheck && vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "mobile:sync": "npm run build && cap sync",
+    "mobile:sync": "npm run typecheck && vite build --mode capacitor && cap sync",
     "test": "node --test tests/*.test.mjs",
     "format": "prettier --write src tests public index.html *.ts *.json *.mjs && eslint --fix src tests public/theme.js *.ts *.mjs",
     "format:check": "eslint src tests public/theme.js *.ts *.mjs"

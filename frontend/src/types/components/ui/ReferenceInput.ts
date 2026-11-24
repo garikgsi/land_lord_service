@@ -7,7 +7,11 @@ export interface ReferenceInputProps {
   id: string;
   label: string;
   endpoint: string;
+  required?: boolean;
+  validateOnBlur?: boolean;
+  placeholder?: string;
   initial?: ReferenceOption;
+  extraOptions?: readonly ReferenceOption[];
   error?: string;
   disabled?: boolean;
 }

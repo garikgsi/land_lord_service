@@ -21,6 +21,1146 @@ nelmio_api_doc:
           name: X-Invitation-Token
           description: 'Токен приглашения для фото до активации. Не Bearer.'
       schemas:
+        UnityProviderContract:
+          type: object
+          required: [id, object, unityProvider, expiryDate, contractNum, contractDate, isSuspended, status, unities, meters]
+          properties:
+            id:
+              type: integer
+            object:
+              $ref: '#/components/schemas/NamedRecord'
+            unityProvider:
+              $ref: '#/components/schemas/NamedRecord'
+            expiryDate:
+              type: string
+              format: date
+            contractNum:
+              type: string
+              nullable: true
+            contractDate:
+              type: string
+              format: date
+              nullable: true
+            isSuspended:
+              type: boolean
+            status:
+              type: string
+              enum: [active, suspended, finished]
+            unities:
+              type: array
+              items:
+                $ref: '#/components/schemas/NamedRecord'
+            meters:
+              type: array
+              items:
+                $ref: '#/components/schemas/Meter'
+        UnityProviderContractList:
+          type: object
+          required: [items, total, page, pageSize]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/UnityProviderContract'
+            total:
+              type: integer
+            page:
+              type: integer
+            pageSize:
+              type: integer
+        NotificationType:
+          type: object
+          required: [id, name, days, roles, isActive, timing]
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            days:
+              type: integer
+              minimum: 0
+              description: Число дней до события для timing=lead; для timing=repeat — интервал, минимум 1 день.
+            timing:
+              type: string
+              enum: [lead, repeat]
+              description: lead — предупреждение до события; repeat — интервал повторения.
+            roles:
+              type: array
+              items:
+                type: string
+            isActive:
+              type: boolean
+        NotificationTypeList:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/NotificationType'
+        ContractIntervention:
+          type: object
+          required:
+            - id
+            - contractId
+            - contractType
+            - isSigned
+            - unityProvider
+            - contractNum
+            - interventionDate
+            - reason
+            - overdue
+            - object
+            - space
+            - renter
+          properties:
+            id:
+              type: string
+              description: 'Уникальный ключ события договора.'
+              example: rental-12-indexation
+            contractId:
+              type: integer
+            contractType:
+              type: string
+              enum: [rental, utility]
+            isSigned:
+              type: boolean
+              nullable: true
+              description: null для коммунального договора.
+            contractNum:
+              type: string
+            interventionDate:
+              type: string
+              format: date
+            reason:
+              type: string
+              enum:
+                - expiry
+                - indexation
+            overdue:
+              type: boolean
+              description: 'Дата раньше сегодняшней; сегодняшний день не считается просроченным.'
+            object:
+              $ref: '#/components/schemas/NamedRecord'
+            space:
+              nullable: true
+              allOf:
+                - $ref: '#/components/schemas/NamedRecord'
+            renter:
+              nullable: true
+              allOf:
+                - $ref: '#/components/schemas/NamedRecord'
+            unityProvider:
+              nullable: true
+              allOf:
+                - $ref: '#/components/schemas/NamedRecord'
+        ContractInterventionList:
+          type: object
+          required:
+            - items
+            - total
+            - page
+            - pageSize
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ContractIntervention'
+            total:
+              type: integer
+            page:
+              type: integer
+            pageSize:
+              type: integer
+              example: 20
+        Unity:
+          type: object
+          required:
+            - id
+            - name
+            - useMeter
+            - unit
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            useMeter:
+              type: boolean
+            unit:
+              type: string
+              nullable: true
+        UnityProvider:
+          type: object
+          required:
+            - id
+            - name
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        ObjectUnityProvider:
+          type: object
+          required:
+            - id
+            - name
+            - objectId
+            - unityProvider
+            - unity
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            objectId:
+              type: integer
+            unityProvider:
+              $ref: '#/components/schemas/UnityProvider'
+            unity:
+              $ref: '#/components/schemas/Unity'
+        MeterInstallation:
+          type: object
+          required:
+            - type
+            - id
+            - name
+            - object
+            - comment
+            - provider
+          properties:
+            type:
+              type: string
+              enum:
+                - object
+                - space
+            id:
+              type: integer
+            name:
+              type: string
+            object:
+              type: object
+              required:
+                - id
+                - name
+                - readingDay
+                - landLord
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+                readingDay:
+                  type: integer
+                landLord:
+                  $ref: '#/components/schemas/LandLord'
+            comment:
+              type: string
+              nullable: true
+            provider:
+              type: object
+              nullable: true
+              allOf:
+                -
+                  $ref: '#/components/schemas/ObjectUnityProvider'
+        MeterReadingPrevious:
+          type: object
+          required: [meterRead, meterReadingDate, monthReadingDate]
+          properties:
+            monthReadingDate:
+              type: string
+              format: date
+              nullable: true
+              description: 'Дата последнего снятия в выбранном календарном месяце; NULL, если показаний за месяц нет.'
+            meterRead:
+              type: integer
+            meterReadingDate:
+              type: string
+              description: 'Дата предыдущего показания либо дата производства для начального значения.'
+        MeterReading:
+          type: object
+          required:
+            - id
+            - meterId
+            - meterReadingDate
+            - meterRead
+          properties:
+            id:
+              type: integer
+            meterId:
+              type: integer
+            meterReadingDate:
+              type: string
+              example: '2026-11-25T12:30:00'
+              description: 'Местная дата/время снятия без часового пояса.'
+            meterRead:
+              type: integer
+        MeterVerification:
+          type: object
+          required:
+            - id
+            - meterId
+            - verificationDate
+          properties:
+            id:
+              type: integer
+            meterId:
+              type: integer
+            verificationDate:
+              type: string
+              format: date
+        Meter:
+          type: object
+          required:
+            - id
+            - name
+            - utility
+            - createDate
+            - startRead
+            - serialNumber
+            - verificationIntervalDays
+            - verificationDate
+            - nextVerificationDate
+            - verificationExpired
+            - readingDay
+            - effectiveReadingDay
+            - readingDueDate
+            - nextReadingDueDate
+            - readingRequired
+            - readingOverdue
+            - readingSubmitted
+            - readingSubmittedLate
+            - readingAttention
+            - installation
+            - lastReading
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            utility:
+              $ref: '#/components/schemas/Unity'
+            createDate:
+              type: string
+              format: date
+              description: 'Вводимая дата производства, также дата начального показания.'
+            startRead:
+              type: integer
+            serialNumber:
+              type: string
+              nullable: true
+            verificationIntervalDays:
+              type: integer
+            verificationDate:
+              type: string
+              format: date
+              nullable: true
+            nextVerificationDate:
+              type: string
+              format: date
+            verificationExpired:
+              type: boolean
+            readingDay:
+              type: integer
+              nullable: true
+            effectiveReadingDay:
+              type: integer
+              nullable: true
+            readingDueDate:
+              type: string
+              format: date
+              nullable: true
+            nextReadingDueDate:
+              type: string
+              format: date
+              nullable: true
+            readingAttention:
+              type: boolean
+              description: Нет показаний и наступило окно из notification_types.days, включая просрочку; тип включён.
+            readingRequired:
+              type: boolean
+            readingOverdue:
+              type: boolean
+            readingSubmitted:
+              type: boolean
+            readingSubmittedLate:
+              type: boolean
+              description: 'Месяц закрыт, но дата снятия первого показания в месяце позже дня передачи. Время создания записи в БД не учитывается.'
+            installation:
+              $ref: '#/components/schemas/MeterInstallation'
+              nullable: true
+            lastReading:
+              $ref: '#/components/schemas/MeterReading'
+              nullable: true
+        UnityList:
+          type: object
+          required:
+            - items
+            - total
+            - page
+            - pageSize
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Unity'
+            total:
+              type: integer
+            page:
+              type: integer
+            pageSize:
+              type: integer
+        UnityProviderList:
+          type: object
+          required:
+            - items
+            - total
+            - page
+            - pageSize
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/UnityProvider'
+            total:
+              type: integer
+            page:
+              type: integer
+            pageSize:
+              type: integer
+        ObjectUnityProviderList:
+          type: object
+          required:
+            - items
+            - total
+            - page
+            - pageSize
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ObjectUnityProvider'
+            total:
+              type: integer
+            page:
+              type: integer
+            pageSize:
+              type: integer
+        MeterList:
+          type: object
+          required:
+            - items
+            - total
+            - page
+            - pageSize
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Meter'
+            total:
+              type: integer
+            page:
+              type: integer
+            pageSize:
+              type: integer
+        MeterVerificationList:
+          type: object
+          required:
+            - items
+            - total
+            - page
+            - pageSize
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/MeterVerification'
+            total:
+              type: integer
+            page:
+              type: integer
+            pageSize:
+              type: integer
+        MeterReadingList:
+          type: object
+          required:
+            - items
+            - total
+            - page
+            - pageSize
+          properties:
+            items:
+              type: array
+              items:
+                allOf:
+                  -
+                    $ref: '#/components/schemas/MeterReading'
+                  -
+                    type: object
+                    required:
+                      - readingDueDate
+                      - submissionStatus
+                      - previousRead
+                      - consumption
+                      - intervalFrom
+                      - intervalTo
+                    properties:
+                      readingDueDate:
+                        type: string
+                        format: date
+                        nullable: true
+                        description: "Deadline in the reading month under the current meter or object schedule; null if unknown."
+                      submissionStatus:
+                        type: string
+                        nullable: true
+                        enum: [on_time, late]
+                        description: "Determined by the reading date, not the database entry date. Null if no schedule can be determined."
+                      previousRead:
+                        type: integer
+                        description: "Previous chronological reading, or the initial meter value for the first reading."
+                      consumption:
+                        type: integer
+                      intervalFrom:
+                        type: string
+                      intervalTo:
+                        type: string
+            total:
+              type: integer
+            page:
+              type: integer
+            pageSize:
+              type: integer
+        Notification:
+          type: object
+          required: [id, kind, title, message, sourcePath, dueDate, createdAt, readAt]
+          properties:
+            id:
+              type: integer
+            kind:
+              type: string
+              description: 'Системный тип события: contract.expiry, contract.indexation, supplier_contract.expiry; meter.reading — сроки показаний; contract.unsigned — повторяющееся напоминание о начавшемся неподписанном договоре.'
+            title:
+              type: string
+            message:
+              type: string
+              description: 'Обычный текст, не HTML.'
+            sourcePath:
+              type: string
+              nullable: true
+              description: 'Внутренний путь приложения, например /contracts/1.'
+            dueDate:
+              type: string
+              format: date
+              nullable: true
+              description: 'Дата исполнения; при наличии сообщение показывается в личном календаре.'
+            createdAt:
+              type: string
+              format: date-time
+            readAt:
+              type: string
+              format: date-time
+              nullable: true
+        NotificationCount:
+          type: object
+          required: [unreadCount]
+          properties:
+            unreadCount:
+              type: integer
+              minimum: 0
+        NotificationList:
+          type: object
+          required: [items, total, page, pageSize]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Notification'
+            total:
+              type: integer
+            page:
+              type: integer
+            pageSize:
+              type: integer
+        NamedRecordInput:
+          type: object
+          required: [name]
+          properties:
+            name:
+              type: string
+              minLength: 1
+              description: 'Обязательное непустое наименование; пробелы по краям удаляются.'
+        RenterContactInput:
+          type: object
+          required: [name]
+          properties:
+            name:
+              type: string
+              minLength: 1
+            lastName:
+              type: string
+              nullable: true
+            patronymic:
+              type: string
+              nullable: true
+            phone:
+              type: string
+              nullable: true
+              description: 'Необязательно. +7 и десять цифр; также принимается формат +7 (XXX) XXX-XX-XX. В ответе — канонический +7XXXXXXXXXX.'
+            email:
+              type: string
+              format: email
+              nullable: true
+              description: 'Необязательно. Пробелы по краям удаляются, регистр понижается.'
+        RenterContact:
+          allOf:
+            - $ref: '#/components/schemas/RenterContactInput'
+            - type: object
+              required: [id, renterId, name, lastName, patronymic, phone, email]
+              properties:
+                id:
+                  type: integer
+                renterId:
+                  type: integer
+        RenterContactList:
+          type: object
+          required: [items, total, page, pageSize]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/RenterContact'
+            total:
+              type: integer
+            page:
+              type: integer
+            pageSize:
+              type: integer
+        NamedRecord:
+          type: "object"
+          required: ["id", "name"]
+          properties:
+            id:
+              type: "integer"
+            name:
+              type: "string"
+        NamedList:
+          type: "object"
+          required: ["items", "total", "page", "pageSize"]
+          properties:
+            items:
+              type: "array"
+              items:
+                $ref: "#/components/schemas/NamedRecord"
+            total:
+              type: "integer"
+            page:
+              type: "integer"
+            pageSize:
+              type: "integer"
+        Renter:
+          type: "object"
+          required: ["id", "name", "inn", "ownership"]
+          properties:
+            id:
+              type: "integer"
+            name:
+              type: "string"
+            inn:
+              type: "string"
+              nullable: true
+            ownership:
+              $ref: "#/components/schemas/NamedRecord"
+        RenterInput:
+          type: "object"
+          required: ["name", "ownershipId"]
+          properties:
+            name:
+              type: "string"
+              minLength: 1
+            ownershipId:
+              type: "integer"
+              minimum: 1
+            inn:
+              type: "string"
+              nullable: true
+              pattern: "^(?:[0-9]{10}|[0-9]{12})$"
+              description: "Можно оставить null; заполненный ИНН уникален."
+        RenterList:
+          type: "object"
+          required: ["items", "total", "page", "pageSize"]
+          properties:
+            items:
+              type: "array"
+              items:
+                $ref: "#/components/schemas/Renter"
+            total:
+              type: "integer"
+            page:
+              type: "integer"
+            pageSize:
+              type: "integer"
+        Space:
+          type: "object"
+          required: ["id", "name", "square", "object", "active", "contractEndDate", "contractAttention"]
+          properties:
+            id:
+              type: "integer"
+            name:
+              type: "string"
+            square:
+              type: "string"
+              description: "Точная положительная площадь."
+            object:
+              $ref: "#/components/schemas/NamedRecord"
+            active:
+              type: "boolean"
+              description: "Вычисляется по договорам, включая резерв до начала первого договора. Дата окончания включена."
+            contractEndDate:
+              type: string
+              format: date
+              nullable: true
+              description: Окончание текущего договора с учетом аннулирования; при отсутствии текущего — ближайшая или последняя запись.
+            contractAttention:
+              type: boolean
+              description: Есть невыполненное событие договора в окне notification_types.days или просроченное; тип включён.
+        SpaceInput:
+          type: "object"
+          required: ["name"]
+          properties:
+            name:
+              type: "string"
+              minLength: 1
+        SpaceAvailability:
+          type: object
+          required: [today, square, occupiedSquare, availableSquare]
+          properties:
+            today:
+              type: string
+              format: date
+            square:
+              type: string
+            occupiedSquare:
+              type: string
+            availableSquare:
+              type: string
+              description: Точный остаток; при contractId резерв этого договора исключён, если Space не резервируют другие договоры.
+        SpaceList:
+          type: "object"
+          required: ["items", "total", "page", "pageSize"]
+          properties:
+            items:
+              type: "array"
+              items:
+                $ref: "#/components/schemas/Space"
+            total:
+              type: "integer"
+            page:
+              type: "integer"
+            pageSize:
+              type: "integer"
+            square:
+              type: "string"
+            occupiedSquare:
+              type: "string"
+            availableSquare:
+              type: "string"
+            today:
+              type: string
+              format: date
+        ContractSigningPreview:
+          type: object
+          required: [asOf, monthCount, totalAmount, periods, confirmation]
+          properties:
+            asOf:
+              type: string
+              format: date
+              description: Дата расчёта в Europe/Moscow.
+            monthCount:
+              type: integer
+            totalAmount:
+              type: string
+              example: '30000.00'
+            confirmation:
+              type: string
+              description: Подтверждение ровно показанного расчёта и реквизитов. Передать как signingConfirmation при сохранении.
+            periods:
+              type: array
+              items:
+                type: object
+                required: [periodMonth, periodStart, periodEnd, monthlyPayment, amount]
+                properties:
+                  periodMonth:
+                    type: string
+                    format: date
+                  periodStart:
+                    type: string
+                    format: date
+                  periodEnd:
+                    type: string
+                    format: date
+                  monthlyPayment:
+                    type: string
+                  amount:
+                    type: string
+        ContractInput:
+          type: "object"
+          required: ["objectId", "renterId", "contractNum", "contractDate", "expiryDate", "monthlyPayment"]
+          properties:
+            signingConfirmation:
+              type: string
+              nullable: true
+              pattern: '^[a-f0-9]{64}$'
+              description: Обязательно при первом подписании с начислениями. Получить через signing-preview; при изменении условий или даты обновить расчёт. Неверное/отсутствующее подтверждение — 422, изменений нет. Повторное сохранение уже подписанного договора с confirmation — 409; начисления не дублируются.
+            isSigned:
+              type: boolean
+              default: true
+              description: 'Подписан. Подписание доступно юристу и администратору. false: редактирование без истории и начислений; площадь резервируется сразу, до подписания и начала аренды. После подписания снять отметку нельзя (409).'
+            objectId:
+              type: "integer"
+              minimum: 1
+            renterId:
+              type: "integer"
+              minimum: 1
+            contractTypeId:
+              type: "integer"
+              minimum: 1
+              default: 1
+              description: "Тип аренда по умолчанию. Оба типа занимают площадь."
+            contractNum:
+              type: "string"
+              minLength: 1
+            contractDate:
+              type: "string"
+              format: "date"
+            expiryDate:
+              type: "string"
+              format: "date"
+            monthlyPayment:
+              type: "string"
+              pattern: "^[0-9]+(?:\\.[0-9]+)?$"
+              example: "50000.00"
+              description: "Точное десятичное значение; не float."
+            securityPayment:
+              type: "string"
+              pattern: "^[0-9]+(?:\\.[0-9]+)?$"
+              example: "50000.00"
+              description: "Точное десятичное значение; не float."
+              default: "0"
+            square:
+              type: "string"
+              nullable: true
+              description: "Обязательна для первого договора. До подписания объект и площадь можно исправлять; null оставляет прежнюю площадь. Подписанный договор не меняет Space. Отрицательный остаток площади запрещён (422)."
+            spaceName:
+              type: "string"
+              description: "Пустое значение: площадь + кв.м + Renter.name."
+            previousContractId:
+              type: "integer"
+              nullable: true
+              description: "Перезаключение на прежнем Space без перерыва до его освобождения."
+            increaseDate:
+              type: "string"
+              format: "date"
+              nullable: true
+            increasePercent:
+              type: "string"
+              pattern: "^[0-9]+(?:\\.[0-9]+)?$"
+              example: "50000.00"
+              description: "Заполняется вместе с increaseDate либо оба null."
+              nullable: true
+        Contract:
+          type: "object"
+          required: ["id", "isSigned", "contractNum", "contractDate", "expiryDate", "annulmentDate", "effectiveEnd", "monthlyPayment", "securityPayment", "increaseDate", "increasePercent", "space", "renter", "landLord", "contractType", "status", "canRecontract", "validFrom", "increaseIntervalMonths", "nextIndexationReminderDate", "lastIndexationDate", "attentionDates"]
+          properties:
+            attentionDates:
+              type: object
+              description: Невыполненные даты, попавшие в активное окно уведомления. Просроченные включены; завершённые действия исключены.
+              required: [expiry, indexation]
+              properties:
+                expiry:
+                  type: string
+                  format: date
+                  nullable: true
+                indexation:
+                  type: string
+                  format: date
+                  nullable: true
+                  description: Фактический следующий невыполненный срок, в том числе периодический.
+            isSigned:
+              type: boolean
+              description: 'Подписание необратимо; история ведётся только с подписания.'
+            id:
+              type: "integer"
+            validFrom:
+              type: string
+              format: date-time
+              nullable: true
+              description: 'Время последнего физического сохранения UTC. У старых записей неизвестно.'
+            lastIndexationDate:
+              type: [string, "null"]
+              format: date
+              description: Дата фактически выполненной индексации; null — выполнение не зафиксировано.
+            increaseIntervalMonths:
+              type: integer
+              nullable: true
+            nextIndexationReminderDate:
+              type: string
+              format: date
+              nullable: true
+            contractNum:
+              type: "string"
+            contractDate:
+              type: "string"
+              format: "date"
+            expiryDate:
+              type: "string"
+              format: "date"
+            annulmentDate:
+              type: "string"
+              format: "date"
+              nullable: true
+            effectiveEnd:
+              type: "string"
+              format: "date"
+            monthlyPayment:
+              type: "string"
+              pattern: "^[0-9]+(?:\\.[0-9]+)?$"
+              example: "50000.00"
+              description: "Точное десятичное значение; не float."
+            securityPayment:
+              type: "string"
+              pattern: "^[0-9]+(?:\\.[0-9]+)?$"
+              example: "50000.00"
+              description: "Точное десятичное значение; не float."
+            increaseDate:
+              type: "string"
+              format: "date"
+              nullable: true
+            increasePercent:
+              type: "string"
+              pattern: "^-?[0-9]+(?:\\.[0-9]+)?$"
+              example: "50000.00"
+              description: "Точное десятичное значение; не float."
+              nullable: true
+            space:
+              $ref: "#/components/schemas/Space"
+            renter:
+              $ref: "#/components/schemas/Renter"
+            landLord:
+              $ref: "#/components/schemas/LandLord"
+            contractType:
+              $ref: "#/components/schemas/NamedRecord"
+            status:
+              type: "string"
+              enum: ["active", "upcoming", "finished", "cancelled"]
+            canRecontract:
+              type: "boolean"
+        ContractList:
+          type: "object"
+          required: ["items", "total", "page", "pageSize"]
+          properties:
+            items:
+              type: "array"
+              items:
+                $ref: "#/components/schemas/Contract"
+            total:
+              type: "integer"
+            page:
+              type: "integer"
+            pageSize:
+              type: "integer"
+        ContractAmendmentInput:
+          type: object
+          required: [renterId, expiryDate, monthlyPayment]
+          properties:
+            renterId:
+              type: integer
+              minimum: 1
+            expiryDate:
+              type: string
+              format: date
+            monthlyPayment:
+              type: string
+              pattern: '^[0-9]+(?:\.[0-9]+)?$'
+              description: 'Неотрицательная сумма за весь Space. Изменяется сразу.'
+        ContractIndexationInput:
+          type: object
+          required: [increaseDate, increasePercent, currentMonthlyPayment, newMonthlyPayment]
+          properties:
+            increaseDate:
+              type: string
+              format: date
+              description: 'Реквизит и начало отсчёта напоминаний. Новая сумма сохраняется сразу, valid_from равен времени сохранения.'
+            increasePercent:
+              type: string
+              pattern: '^-?[0-9]+(?:\.[0-9]+)?$'
+              description: 'Не ниже -100. При calculationMode=amount вычисляется сервером до 6 знаков.'
+            currentMonthlyPayment:
+              type: string
+              pattern: '^[0-9]+(?:\.[0-9]+)?$'
+              description: 'Текущая сумма при открытии окна. Если изменилась — 409; повторно откройте карточку.'
+            newMonthlyPayment:
+              type: string
+              pattern: '^[0-9]+(?:\.[0-9]+)?$'
+              description: 'При calculationMode=percent вычисляется сервером. HALF_UP до копеек.'
+            calculationMode:
+              type: string
+              enum: [percent, amount]
+              default: percent
+              description: 'Последнее изменённое поле: процент или новая сумма.'
+            periodic:
+              type: boolean
+              default: false
+              description: 'Только календарные напоминания, без автоматического повышения.'
+            intervalMonths:
+              type: integer
+              nullable: true
+              minimum: 1
+              description: 'Обязателен при periodic=true; иначе null. Отсчёт от increaseDate.'
+        ContractHistoryState:
+          type: object
+          description: 'Полное прикладное состояние версии. Денежные значения — точные десятичные строки.'
+          properties:
+            contractNum:
+              type: string
+            contractDate:
+              type: string
+              format: date
+            expiryDate:
+              type: string
+              format: date
+            monthlyPayment:
+              type: string
+            securityPayment:
+              type: string
+            annulmentDate:
+              type: string
+              format: date
+              nullable: true
+            increaseDate:
+              type: string
+              format: date
+              nullable: true
+            increasePercent:
+              type: string
+              nullable: true
+            lastIndexationDate:
+              type: [string, "null"]
+              format: date
+              description: Дата фактически выполненной индексации; null — выполнение не зафиксировано.
+            increaseIntervalMonths:
+              type: integer
+              nullable: true
+            renter:
+              $ref: '#/components/schemas/NamedRecord'
+            landLord:
+              $ref: '#/components/schemas/NamedRecord'
+            contractTypeId:
+              type: integer
+        ContractHistory:
+          type: object
+          required: [id, type, validFrom, validTo, current, previousData, nextData]
+          properties:
+            id:
+              type: integer
+              description: 'Порядковый номер версии внутри истории договора, не отдельный ID сущности.'
+            type:
+              type: string
+              enum: [created, amendment, termination, indexation]
+              description: 'Подпись определяется сравнением версий. Первая — создание, без отдельной записи в БД.'
+            validFrom:
+              type: string
+              format: date-time
+              nullable: true
+              description: 'Время физического сохранения UTC. null у старых записей с неизвестной датой создания.'
+            validTo:
+              type: string
+              format: date-time
+              nullable: true
+              description: 'Исключительная верхняя граница окна; null для текущей версии из основной таблицы.'
+            current:
+              type: boolean
+            previousData:
+              $ref: '#/components/schemas/ContractHistoryState'
+            nextData:
+              $ref: '#/components/schemas/ContractHistoryState'
+        ContractHistoryList:
+          type: object
+          required: [items, total, page, pageSize]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ContractHistory'
+            total:
+              type: integer
+            page:
+              type: integer
+            pageSize:
+              type: integer
+        ContractCalendarEvent:
+          type: object
+          required: [id, title, start, allDay, url, color]
+          properties:
+            id:
+              type: string
+            title:
+              type: string
+            start:
+              type: string
+              format: date
+            allDay:
+              type: boolean
+            url:
+              type: string
+            color:
+              type: string
+        ContractCalendar:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ContractCalendarEvent'
+        ContractAnnulmentInput:
+          type: "object"
+          required: ["annulmentDate"]
+          properties:
+            annulmentDate:
+              type: "string"
+              format: "date"
+              description: "Включительно; до начала аренды означает отмену без занятости площади."
+        ContractFile:
+          type: "object"
+          required: ["id", "name", "sizeBytes", "createdAt"]
+          properties:
+            id:
+              type: "integer"
+            name:
+              type: "string"
+            sizeBytes:
+              type: "integer"
+              maximum: 20971520
+            createdAt:
+              type: "string"
+              format: "date-time"
+        ContractFileList:
+          type: "object"
+          required: ["items"]
+          properties:
+            items:
+              type: "array"
+              items:
+                $ref: "#/components/schemas/ContractFile"
+        ContractFileUpload:
+          type: "object"
+          required: ["file"]
+          properties:
+            file:
+              type: "string"
+              format: "binary"
+              description: "Любой файл до 20 МБ."
         LandLord:
           type: object
           required: [id, name, color]
