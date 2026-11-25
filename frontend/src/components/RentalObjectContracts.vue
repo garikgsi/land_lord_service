@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import useCreateNavigation from '../use/createNavigation';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
+import { RouterLink } from 'vue-router';
 import { IconPlus } from '@tabler/icons-vue';
 import RentalContractsTable from './RentalContractsTable.vue';
 import { useAuthStore } from '../store/auth';
@@ -9,20 +10,22 @@ import type { Contract } from '../types/models/Contract';
 import type { RegistryList } from '../types/api/Registry';
 import type { RentalObjectContractsProps } from '../types/components/RentalObjectContracts';
 
+const { fromTable } = useCreateNavigation();
 const props = defineProps<RentalObjectContractsProps>();
 const emit = defineEmits<{ updated: [] }>();
 const auth = useAuthStore();
-const route = useRoute();
 const { api, errorText } = useApi();
 const items = ref<Contract[]>([]);
 const page = ref(1);
 const total = ref(0);
 const loading = ref(false);
 const error = ref('');
-const createRoute = computed(() => ({
-  path: '/contracts/new',
-  query: { objectId: String(props.objectId), returnTo: route.fullPath },
-}));
+const createRoute = computed(() =>
+  fromTable({
+    path: '/contracts/new',
+    query: { objectId: String(props.objectId) },
+  }),
+);
 let controller: AbortController | undefined;
 
 async function reload(value = page.value) {

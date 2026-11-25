@@ -6,7 +6,7 @@ import ReferenceSelect from '../components/ui/ReferenceSelect.vue';
 import FormBackButton from '../components/ui/FormBackButton.vue';
 import MeterSelect from '../components/MeterSelect.vue';
 import useApi, { ApiError } from '../use/api';
-import useCreateNavigation, { creationReturnPath } from '../use/createNavigation';
+import useCreateNavigation from '../use/createNavigation';
 import { useAuthStore } from '../store/auth';
 import type { NamedRecord } from '../types/models/NamedRecord';
 import type { Space } from '../types/models/Space';
@@ -14,7 +14,7 @@ import type { Space } from '../types/models/Space';
 const route = useRoute();
 const auth = useAuthStore();
 const { api, errorText } = useApi();
-const { returnAfterCreate } = useCreateNavigation();
+const { returnTarget, returnAfterCreate } = useCreateNavigation();
 const object = ref<NamedRecord>();
 const space = ref<Space>();
 const utilityId = ref<number | null>(null);
@@ -23,7 +23,7 @@ const loading = ref(true);
 const saving = ref(false);
 const error = ref('');
 const errors = ref<Record<string, string>>({});
-const backRoute = computed(() => creationReturnPath(route.query.returnTo, '/meters'));
+const backRoute = computed(() => returnTarget('/meters'));
 const disabled = computed(() => loading.value || saving.value || !auth.canInstallMeters);
 const canSave = computed(
   () =>

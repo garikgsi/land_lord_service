@@ -31,10 +31,11 @@ const validation = useRentalObjectValidation();
 const objects = computed(() => props.kind === 'objects');
 const creating = computed(() => !route.params.id);
 const tabOrder: RentalObjectTab[] = ['main', 'spaces', 'utilities'];
-const activeTab = ref<RentalObjectTab>(
-  (['meters', 'providers'].includes(String(route.query.tab))
-    ? 'utilities'
-    : tabOrder.find((tab) => tab === route.query.tab)) ?? 'main',
+const activeTab = computed<RentalObjectTab>(
+  () =>
+    (['meters', 'providers'].includes(String(route.query.tab))
+      ? 'utilities'
+      : tabOrder.find((tab) => tab === route.query.tab)) ?? 'main',
 );
 const mainTabButton = ref<HTMLButtonElement | null>(null);
 const metersTabButton = ref<HTMLButtonElement | null>(null);
@@ -118,8 +119,6 @@ const canSave = computed(
 let controller: AbortController | undefined;
 
 async function selectTab(tab: RentalObjectTab) {
-  activeTab.value = tab;
-
   await router.replace({ query: { ...route.query, tab } });
 
   if (tab === 'spaces') await objectContracts.value?.reload();

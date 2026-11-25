@@ -36,6 +36,7 @@ const busy = computed(() => form.value?.saving ?? false);
 const creationTitle = computed(() =>
   kind.value === 'meters' ? (form.value?.title ?? 'Новый счетчик') : 'Добавить: ' + props.label,
 );
+const compactCreation = computed(() => kind.value === 'renters' || kind.value === 'contract-types');
 const components = {
   meters: defineAsyncComponent(() => import('../MeterCreateForm.vue')),
   'land-lords': defineAsyncComponent(() => import('../LandLordForm.vue')),
@@ -119,7 +120,8 @@ function saved(record: ReferenceOption) {
   <FormModal
     v-if="open && creationComponent"
     :title="creationTitle"
-    wide
+    :wide="!compactCreation"
+    :compact="compactCreation"
     :busy="busy"
     @close="close"
   >

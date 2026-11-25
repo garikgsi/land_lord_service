@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import useCreateNavigation from '../use/createNavigation';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { IconPlus } from '@tabler/icons-vue';
@@ -11,6 +12,7 @@ import type { Contract } from '../types/models/Contract';
 import type { NamedRecord } from '../types/models/NamedRecord';
 import type { RegistryList } from '../types/api/Registry';
 
+const { fromTable } = useCreateNavigation();
 const route = useRoute();
 const auth = useAuthStore();
 const { api, errorText } = useApi();
@@ -30,10 +32,12 @@ const filterError = computed(() =>
     ? 'Начало периода не может быть позже окончания.'
     : '',
 );
-const createRoute = computed(() => ({
-  path: '/contracts/new',
-  query: objectId.value ? { objectId: String(objectId.value) } : {},
-}));
+const createRoute = computed(() =>
+  fromTable({
+    path: '/contracts/new',
+    query: objectId.value ? { objectId: String(objectId.value) } : {},
+  }),
+);
 let controller: AbortController | undefined;
 let timer: ReturnType<typeof setTimeout> | undefined;
 

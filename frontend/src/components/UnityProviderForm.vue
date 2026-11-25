@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ModalFormActions from './ui/ModalFormActions.vue';
 import FormBackButton from './ui/FormBackButton.vue';
 import { computed, ref } from 'vue';
 import TextInput from './ui/TextInput.vue';
@@ -111,25 +112,11 @@ defineExpose({ saving, dirty });
         <FormBackButton to="/catalogues/unity-providers" />
       </div>
     </div>
-    <div
+    <ModalFormActions
       v-if="modal"
-      :class="actionsClass"
-    >
-      <button
-        type="button"
-        class="btn"
-        :disabled="saving"
-        @click="emit('cancel')"
-      >
-        Отмена
-      </button>
-      <button
-        type="submit"
-        class="btn btn-primary"
-        :disabled="!canSave"
-      >
-        {{ saveLabel }}
-      </button>
-    </div>
+      :saving="saving"
+      :can-save="canSave"
+      @close="emit('cancel')"
+    />
   </form>
 </template>

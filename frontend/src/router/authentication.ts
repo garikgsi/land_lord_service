@@ -9,7 +9,14 @@ export function configureAuthentication(router: Router, pinia: Pinia) {
     await auth.initialize();
 
     if (to.meta.requiresAuth && !auth.user)
-      return { path: '/login', query: { redirect: to.fullPath } };
+      return {
+        path: '/login',
+        query: { redirect: to.fullPath },
+        state:
+          to.fullPath === router.options.history.location
+            ? { returnPages: router.options.history.state.returnPages }
+            : {},
+      };
 
     if (to.meta.rentalRegistryEdit && !auth.canManageRentalRegistry) return '/objects';
 
@@ -36,6 +43,7 @@ export function configureAuthentication(router: Router, pinia: Pinia) {
         void router.replace({
           path: '/login',
           query: { expired: '1', redirect: current.fullPath },
+          state: { returnPages: router.options.history.state.returnPages },
         });
       }
     },

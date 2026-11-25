@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import useCreateNavigation from '../use/createNavigation';
 import Badge from './ui/Badge.vue';
 import { computed, onMounted, ref } from 'vue';
-import { onBeforeRouteLeave, useRoute, RouterLink } from 'vue-router';
+import { onBeforeRouteLeave, RouterLink } from 'vue-router';
 import { IconPencilPlus, IconPlus } from '@tabler/icons-vue';
 import { objectUtilityRows } from '../use/objectUtilities';
 import type { ObjectUtilityRow } from '../types/components/ObjectUtilities';
@@ -22,9 +23,9 @@ import type { ObjectUnityProvider } from '../types/models/Unity';
 import type { RegistryList } from '../types/api/Registry';
 import type { TableColumn } from '../types/components/ui/DataTable';
 
+const { fromTable } = useCreateNavigation();
 const props = defineProps<ObjectUnityProvidersProps>();
 const auth = useAuthStore();
-const route = useRoute();
 const { api, errorText } = useApi();
 const providers = ref<ObjectUnityProvider[]>([]);
 const meters = ref<Meter[]>([]);
@@ -57,10 +58,12 @@ const filtered = computed(
 const selectedMeterId = ref<number | null>(null);
 const readingMeter = ref<Meter | null>(null);
 const readingModal = ref<Pick<FormState, 'saving'> | null>(null);
-const createRoute = computed(() => ({
-  path: '/unity-provider-contracts/new',
-  query: { objectId: String(props.objectId), returnTo: route.fullPath },
-}));
+const createRoute = computed(() =>
+  fromTable({
+    path: '/unity-provider-contracts/new',
+    query: { objectId: String(props.objectId) },
+  }),
+);
 const loading = ref(false);
 const error = ref('');
 const endpoint = computed(() => '/api/objects/' + props.objectId + '/unity-providers');

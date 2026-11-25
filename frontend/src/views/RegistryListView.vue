@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import useCreateNavigation from '../use/createNavigation';
 import Badge from '../components/ui/Badge.vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
@@ -14,6 +15,7 @@ import type { LandLord } from '../types/models/LandLord';
 
 import type { RegistryProps, RegistryTableRow } from '../types/components/Registry';
 
+const { fromTable } = useCreateNavigation();
 const props = defineProps<RegistryProps>();
 const auth = useAuthStore();
 const deleteEndpoint = computed(() =>
@@ -200,7 +202,7 @@ onBeforeUnmount(() => {
           class="btn btn-primary list-add-button"
           :aria-label="addLabel"
           :title="addLabel"
-          :to="basePath + '/new'"
+          :to="fromTable(basePath + '/new')"
         >
           <IconPlus :size="18" />
           <span class="list-add-label">

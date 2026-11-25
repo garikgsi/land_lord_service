@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ModalFormActions from './ui/ModalFormActions.vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import MeterFields from './MeterFields.vue';
 import useApi, { ApiError } from '../use/api';
@@ -138,7 +139,16 @@ defineExpose({ saving, dirty, title });
         @changed="clearErrors"
       />
     </div>
-    <div :class="footerClass">
+    <ModalFormActions
+      v-if="modal"
+      :saving="saving"
+      :can-save="canSave"
+      @close="emit('cancel')"
+    />
+    <div
+      v-else
+      :class="footerClass"
+    >
       <button
         type="submit"
         class="btn btn-primary"

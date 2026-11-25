@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import useCreateNavigation from '../use/createNavigation';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { IconPlus } from '@tabler/icons-vue';
@@ -9,6 +10,7 @@ import type { Renter } from '../types/models/Renter';
 import type { RegistryList } from '../types/api/Registry';
 import type { TableColumn } from '../types/components/ui/DataTable';
 
+const { fromTable } = useCreateNavigation();
 const auth = useAuthStore();
 const deleteEndpoint = computed(() => (auth.canManageRentalRegistry ? '/api/renters' : undefined));
 const { api, errorText } = useApi();
@@ -130,7 +132,7 @@ onBeforeUnmount(() => {
         #actions
       >
         <RouterLink
-          to="/renters/new"
+          :to="fromTable('/renters/new')"
           class="btn btn-primary list-add-button"
           aria-label="Добавить арендатора"
           title="Добавить арендатора"

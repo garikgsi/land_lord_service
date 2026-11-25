@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import useCreateNavigation from '../use/createNavigation';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
+import { RouterLink } from 'vue-router';
 import FormModal from './ui/FormModal.vue';
 import ContractDetails from './ContractDetails.vue';
 import UnityProviderContractDetails from './UnityProviderContractDetails.vue';
@@ -9,9 +10,9 @@ import type { Contract } from '../types/models/Contract';
 import type { UnityProviderContract } from '../types/models/UnityProviderContract';
 import type { ContractDetailsModalProps } from '../types/components/ContractDetails';
 
+const { fromTable } = useCreateNavigation();
 const props = defineProps<ContractDetailsModalProps>();
 const emit = defineEmits<{ close: [] }>();
-const route = useRoute();
 const { api, errorText } = useApi();
 const record = ref<Contract | UnityProviderContract>();
 const loading = ref(true);
@@ -28,10 +29,7 @@ const title = computed(
     (props.kind === 'rental' ? 'Договор аренды' : 'Договор коммунального поставщика') +
     (record.value?.contractNum ? ' № ' + record.value.contractNum : ''),
 );
-const cardRoute = computed(() => ({
-  path: basePath.value + props.contractId,
-  query: { returnTo: route.fullPath },
-}));
+const cardRoute = computed(() => fromTable(basePath.value + props.contractId));
 let controller: AbortController | undefined;
 
 async function load() {

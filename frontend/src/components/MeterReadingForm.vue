@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ModalFormActions from './ui/ModalFormActions.vue';
 import FormBackButton from './ui/FormBackButton.vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import Badge from './ui/Badge.vue';
@@ -238,7 +239,16 @@ defineExpose({ saving, dirty });
         </span>
       </div>
     </div>
-    <div :class="footerClass">
+    <ModalFormActions
+      v-if="modal"
+      :saving="saving"
+      :can-save="canSave"
+      @close="emit('cancel')"
+    />
+    <div
+      v-else
+      :class="footerClass"
+    >
       <button
         type="submit"
         class="btn btn-primary"
@@ -246,19 +256,7 @@ defineExpose({ saving, dirty });
       >
         {{ saveLabel }}
       </button>
-      <button
-        v-if="modal"
-        type="button"
-        class="btn"
-        :disabled="saving"
-        @click="emit('cancel')"
-      >
-        Отмена
-      </button>
-      <FormBackButton
-        v-else
-        :to="'/meters/' + meter.id + '?tab=readings'"
-      />
+      <FormBackButton :to="'/meters/' + meter.id + '?tab=readings'" />
     </div>
   </form>
 </template>

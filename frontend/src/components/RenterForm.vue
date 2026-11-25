@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ModalFormActions from './ui/ModalFormActions.vue';
 import FormBackButton from './ui/FormBackButton.vue';
 import { computed, ref } from 'vue';
 import TextInput from './ui/TextInput.vue';
@@ -21,13 +22,9 @@ const saving = ref(false);
 const error = ref('');
 const notice = ref('');
 const errors = ref<ApiErrors>({});
-const nameColumnClass = computed(() => (props.modal ? 'col-12 col-md-5' : 'col-12 col-lg-6'));
-const ownershipColumnClass = computed(() =>
-  props.modal ? 'col-12 col-md-4' : 'col-12 col-md-6 col-lg-3',
-);
-const innColumnClass = computed(() =>
-  props.modal ? 'col-12 col-md-3' : 'col-12 col-md-6 col-lg-3',
-);
+const nameColumnClass = computed(() => (props.modal ? 'col-12' : 'col-12 col-lg-6'));
+const ownershipColumnClass = computed(() => (props.modal ? 'col-12' : 'col-12 col-md-6 col-lg-3'));
+const innColumnClass = computed(() => (props.modal ? 'col-12' : 'col-12 col-md-6 col-lg-3'));
 const prefix = computed(() => (props.modal ? 'modal-renter' : 'renter'));
 const nameId = computed(() => prefix.value + '-name');
 const innId = computed(() => prefix.value + '-inn');
@@ -161,7 +158,7 @@ defineExpose({ dirty, saving });
         </div>
       </div>
       <div
-        v-if="auth.canManageRentalRegistry || !modal"
+        v-if="!modal"
         class="d-flex flex-wrap gap-2 mt-3"
       >
         <button
@@ -172,20 +169,14 @@ defineExpose({ dirty, saving });
         >
           {{ saveLabel }}
         </button>
-        <button
-          v-if="modal"
-          type="button"
-          class="btn"
-          :disabled="saving"
-          @click="emit('cancel')"
-        >
-          Отмена
-        </button>
-        <FormBackButton
-          v-else
-          to="/renters"
-        />
+        <FormBackButton to="/renters" />
       </div>
     </div>
+    <ModalFormActions
+      v-if="modal && auth.canManageRentalRegistry"
+      :saving="saving"
+      :can-save="canSave"
+      @close="emit('cancel')"
+    />
   </form>
 </template>

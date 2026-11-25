@@ -31,14 +31,21 @@ async function submit() {
     password.value = '';
     const next = route.query.redirect;
 
-    await router.replace(
+    const destination =
       typeof next === 'string' &&
-        next.startsWith('/') &&
-        !next.startsWith('//') &&
-        !/^\/(login|forgot-password|reset-password|activate)(\/|$)/.test(next)
+      next.startsWith('/') &&
+      !next.startsWith('//') &&
+      !/^\/(login|forgot-password|reset-password|activate)(\/|$)/.test(next)
         ? next
-        : '/',
-    );
+        : '/';
+    const { path, query, hash } = router.resolve(destination);
+
+    await router.replace({
+      path,
+      query,
+      hash,
+      state: { returnPages: router.options.history.state.returnPages },
+    });
   } catch (e) {
     error.value = errorText(e);
   } finally {

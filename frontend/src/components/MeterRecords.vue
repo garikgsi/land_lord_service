@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import useCreateNavigation from '../use/createNavigation';
 import Badge from './ui/Badge.vue';
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
@@ -17,6 +18,7 @@ import type { MeterRecordsProps, MeterRecordRow } from '../types/components/Mete
 import type { RegistryList } from '../types/api/Registry';
 import type { TableColumn } from '../types/components/ui/DataTable';
 
+const { fromTable } = useCreateNavigation();
 const props = defineProps<MeterRecordsProps>();
 const emit = defineEmits<{ createReading: [] }>();
 const { api, errorText } = useApi();
@@ -170,7 +172,7 @@ onMounted(load);
       </button>
       <RouterLink
         v-else
-        :to="base + '/new'"
+        :to="fromTable(base + '/new')"
         class="btn btn-primary list-add-button"
         aria-label="Добавить запись"
         title="Добавить запись"

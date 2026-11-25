@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import useCreateNavigation from '../use/createNavigation';
 import Badge from '../components/ui/Badge.vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
@@ -14,6 +15,7 @@ import type { User } from '../types/models/User';
 import type { UserList } from '../types/api/User';
 import type { MessageResponse } from '../types/use/Api';
 
+const { fromTable } = useCreateNavigation();
 const route = useRoute();
 const auth = useAuthStore();
 const roles = useRolesStore();
@@ -249,7 +251,7 @@ onBeforeUnmount(() => {
           class="btn btn-primary list-add-button"
           aria-label="Добавить пользователя"
           title="Добавить пользователя"
-          to="/admin/users/new"
+          :to="fromTable('/admin/users/new')"
         >
           <IconPlus :size="19" />
           <span class="list-add-label">

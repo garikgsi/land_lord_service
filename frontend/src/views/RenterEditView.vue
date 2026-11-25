@@ -20,7 +20,7 @@ const record = ref<Renter>();
 const loading = ref(true);
 const error = ref('');
 const form = ref<FormState | null>(null);
-const activeTab = ref<RenterTab>(
+const activeTab = computed<RenterTab>(() =>
   !creating.value && route.query.tab === 'contacts' ? 'contacts' : 'main',
 );
 const mainTabButton = ref<HTMLButtonElement | null>(null);
@@ -37,7 +37,7 @@ const title = computed(() =>
 );
 
 async function selectTab(tab: RenterTab) {
-  activeTab.value = tab;
+  await router.replace({ query: { ...route.query, tab } });
 
   if (tab === 'contacts') await contacts.value?.reload();
 }

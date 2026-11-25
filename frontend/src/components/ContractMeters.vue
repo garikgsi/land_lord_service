@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import useCreateNavigation from '../use/createNavigation';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
+import { RouterLink } from 'vue-router';
 import { IconPlus } from '@tabler/icons-vue';
 import Badge from './ui/Badge.vue';
 import DataTable from './ui/DataTable.vue';
@@ -22,8 +23,8 @@ import type { RegistryList } from '../types/api/Registry';
 import type { ActionMenuItem } from '../types/components/ui/ActionMenu';
 import type { TableColumn } from '../types/components/ui/DataTable';
 
+const { fromTable } = useCreateNavigation();
 const props = defineProps<ContractMetersProps>();
-const route = useRoute();
 const auth = useAuthStore();
 const { api, errorText } = useApi();
 const items = ref<Meter[]>([]);
@@ -54,14 +55,15 @@ const rows = computed<ContractMeterRow[]>(() =>
           : 'secondary',
   })),
 );
-const createRoute = computed(() => ({
-  path: '/meters/new',
-  query: {
-    objectId: String(props.objectId),
-    spaceId: String(props.spaceId),
-    returnTo: route.fullPath,
-  },
-}));
+const createRoute = computed(() =>
+  fromTable({
+    path: '/meters/new',
+    query: {
+      objectId: String(props.objectId),
+      spaceId: String(props.spaceId),
+    },
+  }),
+);
 const columns: TableColumn<ContractMeterRow>[] = [
   { key: 'utility', label: 'Коммуникация', value: (row) => row.utility.name },
   { key: 'serialNumber', label: 'Номер', value: (row) => row.serialNumber ?? '—' },

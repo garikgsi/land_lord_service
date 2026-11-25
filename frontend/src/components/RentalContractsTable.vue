@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import useCreateNavigation from '../use/createNavigation';
 import { computed } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
+import { RouterLink } from 'vue-router';
 import DataTable from './ui/DataTable.vue';
 import Badge from './ui/Badge.vue';
 import ContractActions from './ContractActions.vue';
@@ -13,6 +14,7 @@ import type {
 } from '../types/components/LegalDashboard';
 import type { TableColumn } from '../types/components/ui/DataTable';
 
+const { fromTable } = useCreateNavigation();
 const props = withDefaults(defineProps<RentalContractsTableProps>(), { showObject: true });
 const emit = defineEmits<{
   pageChange: [page: number];
@@ -24,7 +26,6 @@ const previewRow = computed(() =>
 );
 const recordRoute = computed(() => (props.preview ? undefined : rowRoute));
 const auth = useAuthStore();
-const route = useRoute();
 const rows = computed<LegalContractRow[]>(() =>
   props.items.map((item, index) => ({
     ...item,
@@ -125,7 +126,7 @@ function rowRoute(row: LegalContractRow) {
       />
       <RouterLink
         v-else-if="column.key === 'actions'"
-        :to="{ path: '/contracts/' + row.id, query: { returnTo: route.fullPath } }"
+        :to="fromTable('/contracts/' + row.id)"
         class="btn"
       >
         Изменить

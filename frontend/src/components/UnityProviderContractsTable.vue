@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import useCreateNavigation from '../use/createNavigation';
 import Badge from './ui/Badge.vue';
 import {
   unityProviderContractStatusLabels,
   unityProviderContractStatusColors,
 } from '../store/unityProviderContracts';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { RouterLink, useRoute, onBeforeRouteLeave } from 'vue-router';
+import { RouterLink, onBeforeRouteLeave } from 'vue-router';
 import ReferenceSelect from './ui/ReferenceSelect.vue';
 import SelectInput from './ui/SelectInput.vue';
 import MeterDetailsModal from './MeterDetailsModal.vue';
@@ -26,8 +27,8 @@ import type {
 } from '../types/components/LegalDashboard';
 import type { TableColumn } from '../types/components/ui/DataTable';
 
+const { fromTable } = useCreateNavigation();
 const props = defineProps<UnityProviderContractsTableProps>();
-const route = useRoute();
 const auth = useAuthStore();
 const deleteEndpoint = computed(() =>
   auth.canManageRentalRegistry && !props.dashboard ? '/api/unity-provider-contracts' : undefined,
@@ -97,14 +98,15 @@ const rows = computed<UnityProviderContractRow[]>(() =>
     expiryLabel: item.expiryDate.split('-').reverse().join('.'),
   })),
 );
-const createRoute = computed(() => ({
-  path: '/unity-provider-contracts/new',
-  query: {
-    objectId: props.objectId ? String(props.objectId) : undefined,
-    unityProviderId: props.unityProviderId ? String(props.unityProviderId) : undefined,
-    returnTo: route.fullPath,
-  },
-}));
+const createRoute = computed(() =>
+  fromTable({
+    path: '/unity-provider-contracts/new',
+    query: {
+      objectId: props.objectId ? String(props.objectId) : undefined,
+      unityProviderId: props.unityProviderId ? String(props.unityProviderId) : undefined,
+    },
+  }),
+);
 const columns = computed<TableColumn<UnityProviderContractRow>[]>(() =>
   props.dashboard
     ? [

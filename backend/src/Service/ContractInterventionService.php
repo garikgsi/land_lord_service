@@ -22,7 +22,7 @@ final readonly class ContractInterventionService
                 SELECT 'rental' AS contract_type, CASE WHEN is_signed THEN 1 ELSE 0 END AS is_signed, contract_id, contract_num, intervention_date, reason,
                        object_id, object_name, space_id, space_name, renter_id, renter_name,
                        NULL::integer AS provider_id, NULL::text AS provider_name
-                FROM events
+                FROM events WHERE is_signed
                 UNION ALL
                 SELECT 'utility', NULL::integer, c.id, COALESCE(c.contract_num, '—'), c.expiry_date, 'expiry',
                        o.id, o.name, NULL::integer, NULL::text, NULL::integer, NULL::text, p.id, p.name

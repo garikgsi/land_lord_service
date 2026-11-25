@@ -2,7 +2,7 @@
 import FormBackButton from '../components/ui/FormBackButton.vue';
 import type { FormState } from '../types/components/FormState';
 import Badge from '../components/ui/Badge.vue';
-import useCreateNavigation, { creationReturnPath } from '../use/createNavigation';
+import useCreateNavigation from '../use/createNavigation';
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import MeterFields from '../components/MeterFields.vue';
@@ -15,7 +15,7 @@ import { meterErrors } from '../use/meterValidation';
 import type { Meter } from '../types/models/Meter';
 import type { MeterDraft } from '../types/forms/Meter';
 
-const { returnAfterCreate, returnAfterSave } = useCreateNavigation();
+const { returnTarget, returnAfterCreate, returnAfterSave } = useCreateNavigation();
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
@@ -42,7 +42,7 @@ const error = ref('');
 const errors = ref<Record<string, string>>({});
 const notice = ref('');
 const editing = computed(() => !!route.params.id);
-const backRoute = computed(() => creationReturnPath(route.query.returnTo, '/meters'));
+const backRoute = computed(() => returnTarget('/meters'));
 const title = computed(() =>
   editing.value ? 'Счетчик ' + (record.value?.name ?? 'Загрузка…') : 'Добавить счетчик',
 );

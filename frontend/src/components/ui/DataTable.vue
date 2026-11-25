@@ -4,7 +4,8 @@ import { IconTrash } from '@tabler/icons-vue';
 import Pagination from './Pagination.vue';
 import DeleteConfirmModal from './DeleteConfirmModal.vue';
 import useApi from '../../use/api';
-import { useRoute, useRouter } from 'vue-router';
+import useCreateNavigation from '../../use/createNavigation';
+import { useRouter } from 'vue-router';
 import type {
   DataTableProps,
   DataTableSlots,
@@ -22,7 +23,7 @@ const emit = defineEmits<{ pageChange: [page: number]; deleted: [row: T] }>();
 
 const slots = defineSlots<DataTableSlots<T>>();
 const router = useRouter();
-const route = useRoute();
+const { fromTable } = useCreateNavigation();
 const selected = shallowRef<T | null>(null);
 const deleting = ref(false);
 const deleteError = ref('');
@@ -123,13 +124,7 @@ function openRow(row: T) {
 
   if (!props.rowRoute) return;
 
-  const target = router.resolve(props.rowRoute(row));
-
-  void router.push({
-    path: target.path,
-    query: { ...target.query, returnTo: route.fullPath },
-    hash: target.hash,
-  });
+  void router.push(fromTable(props.rowRoute(row)));
 }
 
 function rowClicked(event: MouseEvent, row: T) {

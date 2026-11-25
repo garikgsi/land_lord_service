@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import useCreateNavigation from '../use/createNavigation';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { IconPlus } from '@tabler/icons-vue';
@@ -17,6 +18,7 @@ import type { RegistryList } from '../types/api/Registry';
 import type { TableColumn } from '../types/components/ui/DataTable';
 import type { MeterTableProps } from '../types/forms/Meter';
 
+const { fromTable } = useCreateNavigation();
 const props = defineProps<MeterTableProps>();
 const auth = useAuthStore();
 const deleteEndpoint = computed(() => (auth.canManageMeters ? '/api/meters' : undefined));
@@ -62,10 +64,12 @@ const filtered = computed(
 );
 const loading = ref(false);
 const error = ref('');
-const createRoute = computed(() => ({
-  path: '/meters/new',
-  query: { objectId: props.objectId, spaceId: props.spaceId },
-}));
+const createRoute = computed(() =>
+  fromTable({
+    path: '/meters/new',
+    query: { objectId: props.objectId, spaceId: props.spaceId },
+  }),
+);
 const columns: TableColumn<MeterTableRow>[] = [
   { key: 'name', label: 'Прибор' },
   { key: 'installation', label: 'Место установки' },

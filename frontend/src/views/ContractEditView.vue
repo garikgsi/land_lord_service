@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import FormBackButton from '../components/ui/FormBackButton.vue';
 import Badge from '../components/ui/Badge.vue';
-import useCreateNavigation, { creationReturnPath } from '../use/createNavigation';
+import useCreateNavigation from '../use/createNavigation';
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { RouterLink, onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import TextInput from '../components/ui/TextInput.vue';
@@ -26,14 +26,18 @@ import type { NamedRecord } from '../types/models/NamedRecord';
 import type { RegistryList } from '../types/api/Registry';
 import type { ApiErrors } from '../types/use/Api';
 
-const { returnAfterCreate, returnAfterSave } = useCreateNavigation();
+const { returnTarget, returnAfterCreate, returnAfterSave } = useCreateNavigation();
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 const { api, errorText } = useApi();
 const validation = useContractValidation();
 const creating = computed(() => !route.params.id);
-const backRoute = computed(() => creationReturnPath(route.query.returnTo, '/contracts'));
+const fixedObject = computed(() => creating.value && Number(route.query.objectId) > 0);
+const partyColumnClass = computed(() =>
+  fixedObject.value ? 'col-12 col-lg-6' : 'col-12 col-lg-4',
+);
+const backRoute = computed(() => returnTarget('/contracts'));
 const record = ref<Contract>();
 const previous = ref<Contract>();
 const initialObject = ref<NamedRecord>();
@@ -44,13 +48,18 @@ const loadError = ref('');
 const error = ref('');
 const notice = ref('');
 const saving = ref(false);
-const activeTab = ref<ContractTab>(
-  route.query.tab === 'meters' ? 'meters' : route.query.tab === 'history' ? 'history' : 'main',
-);
+const activeTab = computed<ContractTab>(() => {
+  if (record.value && route.query.tab === 'meters') return 'meters';
+
+  if (record.value?.isSigned && route.query.tab === 'history') return 'history';
+
+  return 'main';
+});
 const meters = ref<InstanceType<typeof ContractMeters> | null>(null);
 const actions = ref<InstanceType<typeof ContractActions> | null>(null);
 const history = ref<InstanceType<typeof ContractHistory> | null>(null);
 const errors = ref<ApiErrors>({});
+const signedErrorId = computed(() => (errors.value.isSigned ? 'contract-signed-error' : undefined));
 const attachments = ref<InstanceType<typeof ContractFiles> | null>(null);
 const original = ref('');
 const signingPreview = ref<ContractSigningPreview | null>(null);
@@ -193,7 +202,6 @@ let availabilityController: AbortController | undefined;
 async function selectTab(tab: ContractTab) {
   if (meters.value?.saving) return;
 
-  activeTab.value = tab;
   await router.replace({ query: { ...route.query, tab } });
 }
 
@@ -281,8 +289,6 @@ async function load() {
     if (!creating.value) {
       source = await api<Contract>('/api/contracts/' + route.params.id, { signal: current.signal });
       record.value = source;
-
-      if (!source.isSigned && activeTab.value === 'history') activeTab.value = 'main';
     } else if (route.query.previousContractId) {
       source = await api<Contract>('/api/contracts/' + Number(route.query.previousContractId), {
         signal: current.signal,
@@ -597,27 +603,6 @@ onBeforeUnmount(() => {
               >
                 {{ reminderCaption }}
               </p>
-              <div class="mb-3">
-                <label class="form-check">
-                  <input
-                    id="contract-signed"
-                    v-model="form.isSigned"
-                    type="checkbox"
-                    class="form-check-input"
-                    :disabled="disabled || record?.isSigned"
-                  />
-                  <span class="form-check-label">
-                    Договор подписан
-                  </span>
-                </label>
-                <div
-                  v-if="errors.isSigned"
-                  class="text-danger mt-1"
-                  role="alert"
-                >
-                  {{ errors.isSigned }}
-                </div>
-              </div>
               <div
                 v-if="availabilityError"
                 class="alert alert-danger"
@@ -633,7 +618,10 @@ onBeforeUnmount(() => {
                 </button>
               </div>
               <div class="row g-3">
-                <div class="col-12 col-lg-4">
+                <div
+                  v-if="!fixedObject"
+                  class="col-12 col-lg-4"
+                >
                   <ReferenceSelect
                     id="contract-object"
                     v-model="form.objectId"
@@ -645,7 +633,7 @@ onBeforeUnmount(() => {
                     @update:model-value="objectSelected"
                   />
                 </div>
-                <div class="col-12 col-lg-4">
+                <div :class="partyColumnClass">
                   <ReferenceSelect
                     id="contract-renter"
                     v-model="form.renterId"
@@ -657,7 +645,7 @@ onBeforeUnmount(() => {
                     @update:model-value="renterSelected"
                   />
                 </div>
-                <div class="col-12 col-lg-4">
+                <div :class="partyColumnClass">
                   <ReferenceSelect
                     id="contract-type"
                     v-model="form.contractTypeId"
@@ -775,6 +763,30 @@ onBeforeUnmount(() => {
                     :validation-error="validationErrors.increasePercent"
                   />
                 </div>
+                <div class="col-12 col-md-4 contract-signature-field">
+                  <label class="d-flex align-items-center gap-2 mb-0">
+                    <input
+                      id="contract-signed"
+                      v-model="form.isSigned"
+                      type="checkbox"
+                      class="form-check-input m-0"
+                      :disabled="disabled || record?.isSigned"
+                      :aria-invalid="!!errors.isSigned"
+                      :aria-describedby="signedErrorId"
+                    />
+                    <span class="form-check-label">
+                      Договор подписан
+                    </span>
+                  </label>
+                  <div
+                    v-if="errors.isSigned"
+                    id="contract-signed-error"
+                    class="text-danger mt-1"
+                    role="alert"
+                  >
+                    {{ errors.isSigned }}
+                  </div>
+                </div>
               </div>
               <div class="d-flex flex-wrap gap-2 mt-3">
                 <button
@@ -836,3 +848,15 @@ onBeforeUnmount(() => {
     @cancel="cancelSigning"
   />
 </template>
+
+<style scoped>
+.contract-signature-field > label {
+  min-height: 2.5rem;
+}
+
+@media (min-width: 768px) {
+  .contract-signature-field {
+    padding-top: 1.75rem;
+  }
+}
+</style>

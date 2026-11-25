@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ModalFormActions from './ui/ModalFormActions.vue';
 import FormBackButton from './ui/FormBackButton.vue';
 import { computed, ref } from 'vue';
 import TextInput from './ui/TextInput.vue';
@@ -30,6 +31,7 @@ const canSave = computed(
 const saveLabel = computed(() =>
   saving.value ? 'Сохраняем…' : props.initial ? 'Сохранить' : 'Создать',
 );
+const nameColumnClass = computed(() => (props.modal ? 'col-12' : 'col-12 col-md-6'));
 const bodyClass = computed(() => (props.modal ? 'modal-body' : 'card-body'));
 const actionsClass = computed(() => (props.modal ? 'modal-footer' : 'd-flex flex-wrap gap-2 mt-3'));
 
@@ -84,7 +86,7 @@ defineExpose({ saving, dirty });
         {{ error }}
       </div>
       <div class="row g-3">
-        <div class="col-12 col-md-6">
+        <div :class="nameColumnClass">
           <TextInput
             id="catalogue-name"
             v-model="name"
@@ -111,25 +113,11 @@ defineExpose({ saving, dirty });
         <FormBackButton :to="'/catalogues/' + kind" />
       </div>
     </div>
-    <div
+    <ModalFormActions
       v-if="modal"
-      :class="actionsClass"
-    >
-      <button
-        type="button"
-        class="btn"
-        :disabled="saving"
-        @click="emit('cancel')"
-      >
-        Отмена
-      </button>
-      <button
-        type="submit"
-        class="btn btn-primary"
-        :disabled="!canSave"
-      >
-        {{ saveLabel }}
-      </button>
-    </div>
+      :saving="saving"
+      :can-save="canSave"
+      @close="emit('cancel')"
+    />
   </form>
 </template>

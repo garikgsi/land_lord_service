@@ -917,9 +917,11 @@ a:focus-visible {
   color: var(--tblr-body-color);
   background: var(--tblr-bg-surface);
 }
-.renter-dialog,
 .ui-dialog-wide {
   width: min(960px, calc(100vw - 2rem));
+}
+.ui-dialog-compact {
+  width: min(400px, calc(100vw - 2rem));
 }
 .ui-dialog .modal-body,
 .ui-dialog .modal-footer {

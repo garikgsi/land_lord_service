@@ -6,7 +6,7 @@ import { RouterLink, useRoute, onBeforeRouteLeave } from 'vue-router';
 import ReferenceSelect from '../components/ui/ReferenceSelect.vue';
 import TextInput from '../components/ui/TextInput.vue';
 import useApi, { ApiError } from '../use/api';
-import useCreateNavigation, { creationReturnPath } from '../use/createNavigation';
+import useCreateNavigation from '../use/createNavigation';
 import { dateError } from '../use/meterValidation';
 import { useAuthStore } from '../store/auth';
 import type { Unity } from '../types/models/Unity';
@@ -16,13 +16,10 @@ import type { UnityProviderContract } from '../types/models/UnityProviderContrac
 const route = useRoute();
 const auth = useAuthStore();
 const { api, errorText } = useApi();
-const { returnAfterCreate, returnAfterSave } = useCreateNavigation();
+const { returnTarget, returnAfterCreate, returnAfterSave } = useCreateNavigation();
 const record = ref<UnityProviderContract>();
 const objectRoute = computed(() =>
-  creationReturnPath(
-    route.query.returnTo,
-    objectId.value ? '/objects/' + objectId.value + '?tab=utilities' : '/objects',
-  ),
+  returnTarget(objectId.value ? '/objects/' + objectId.value + '?tab=utilities' : '/objects'),
 );
 const editing = computed(() => !!route.params.id);
 const objectId = ref<number | null>(Number(route.query.objectId) || null);

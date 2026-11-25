@@ -16,7 +16,7 @@ import type { RegistryList } from '../types/api/Registry';
 const { returnAfterSave } = useCreateNavigation();
 const route = useRoute();
 const router = useRouter();
-const activeTab = ref<SpaceTab>(
+const activeTab = computed<SpaceTab>(() =>
   route.query.tab === 'meters' ? 'meters' : route.query.tab === 'contracts' ? 'contracts' : 'main',
 );
 const tabs = computed(() =>
@@ -65,8 +65,6 @@ const statusLabel = computed(() =>
 let controller: AbortController | undefined;
 
 async function selectTab(tab: SpaceTab) {
-  activeTab.value = tab;
-
   await router.replace({ query: { ...route.query, tab } });
 }
 

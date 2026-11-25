@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import useCreateNavigation from '../use/createNavigation';
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
+import { RouterLink } from 'vue-router';
 import FormModal from './ui/FormModal.vue';
 import MeterDetails from './MeterDetails.vue';
 import MeterDeadlines from './MeterDeadlines.vue';
@@ -8,18 +9,15 @@ import useApi from '../use/api';
 import type { Meter } from '../types/models/Meter';
 import type { MeterDetailsModalProps } from '../types/components/MeterDetailsModal';
 
+const { fromTable } = useCreateNavigation();
 const props = defineProps<MeterDetailsModalProps>();
 const emit = defineEmits<{ close: [] }>();
-const route = useRoute();
 const { api, errorText } = useApi();
 const record = ref<Meter>();
 const error = ref('');
 const loading = ref(true);
 const title = computed(() => 'Счетчик ' + (record.value?.name ?? ''));
-const cardRoute = computed(() => ({
-  path: '/meters/' + props.meterId,
-  query: { returnTo: route.fullPath },
-}));
+const cardRoute = computed(() => fromTable('/meters/' + props.meterId));
 let controller: AbortController | undefined;
 
 async function load() {

@@ -10,6 +10,8 @@ import {
   IconGauge,
   IconUsers,
 } from '@tabler/icons-vue';
+import { workspaceHistory } from './router/workspaceHistory';
+import { configureLegacyReturns } from './use/createNavigation';
 import { configureAuthentication } from './router/authentication';
 import { pinia } from './store';
 import type { Section } from './types/router/Section';
@@ -68,7 +70,7 @@ if (!native && typeof window !== 'undefined') {
 }
 
 export const router = createRouter({
-  history: native ? createWebHashHistory() : createWebHistory(),
+  history: workspaceHistory(native ? createWebHashHistory() : createWebHistory()),
   scrollBehavior: () => ({ top: 0 }),
   routes: [
     { path: '/login', component: () => import('./views/LoginView.vue') },
@@ -320,27 +322,12 @@ function followLegacyHash() {
 if (!native && typeof window !== 'undefined')
   window.addEventListener('hashchange', followLegacyHash);
 
+const removeLegacyReturns = configureLegacyReturns(router);
 const disposeAuthentication = configureAuthentication(router, pinia);
-const removeCreationGuard = router.beforeEach((to, from) => {
-  if (
-    to.meta.requiresAuth &&
-    to.path.endsWith('/new') &&
-    from.meta.requiresAuth &&
-    !from.path.endsWith('/new') &&
-    !to.query.returnTo
-  ) {
-    return {
-      path: to.path,
-      query: { ...to.query, returnTo: from.fullPath },
-      hash: to.hash,
-      replace: true,
-    };
-  }
-});
 
 import.meta.hot?.dispose(() => {
   disposeAuthentication();
-  removeCreationGuard();
+  removeLegacyReturns();
 
   if (!native && typeof window !== 'undefined')
     window.removeEventListener('hashchange', followLegacyHash);

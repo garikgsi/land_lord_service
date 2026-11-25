@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import useCreateNavigation from '../use/createNavigation';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { IconPlus } from '@tabler/icons-vue';
@@ -10,6 +11,7 @@ import type { RenterContactsProps, RenterContactRow } from '../types/components/
 import type { RegistryList } from '../types/api/Registry';
 import type { TableColumn } from '../types/components/ui/DataTable';
 
+const { fromTable } = useCreateNavigation();
 const props = defineProps<RenterContactsProps>();
 const { api, errorText } = useApi();
 const auth = useAuthStore();
@@ -127,7 +129,7 @@ defineExpose({ reload: () => reload() });
       #actions
     >
       <RouterLink
-        :to="basePath + '/new'"
+        :to="fromTable(basePath + '/new')"
         class="btn btn-primary list-add-button"
         aria-label="Добавить контакт"
         title="Добавить контакт"

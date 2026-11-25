@@ -55,10 +55,12 @@ final class ContractInterventionTest extends WebTestCase
         parent::tearDown();
     }
 
-    private function contract(string $end, ?string $increase = null, string $number = 'N-1'): Contract
+    private function contract(string $end, ?string $increase = null, string $number = 'N-1', bool $isSigned = true): Contract
     {
         $space = new Space($this->object, 'Intervention space '.$number, '10');
         $contract = new Contract($space, $this->renter, $this->object->getLandLord(), $this->em->find(ContractType::class, 1), '0', new \DateTimeImmutable($end), new \DateTimeImmutable('2020-01-01'), $number, '100');
+
+        $contract->setSigned($isSigned);
 
         if (null !== $increase) {
             $contract->setIncreaseDate(new \DateTimeImmutable($increase));
@@ -70,6 +72,21 @@ final class ContractInterventionTest extends WebTestCase
         $this->em->flush();
 
         return $contract;
+    }
+
+    public function testAttentionReportExcludesUnsignedContractsFromEventsAndTotals(): void
+    {
+        $signed = $this->contract('2027-12-31', '2027-03-01', 'Signed');
+        $this->contract('2027-01-31', '2027-01-15', 'Unsigned', false);
+        $service = static::getContainer()->get(ContractInterventionService::class);
+        $all = $service->list(new ContractInterventionListQuery(contractType: 'rental'));
+        $expiry = $service->list(new ContractInterventionListQuery(action: 'expiry', contractType: 'rental'));
+        $indexation = $service->list(new ContractInterventionListQuery(action: 'indexation', contractType: 'rental'));
+
+        self::assertSame(
+            [2, [$signed->getId(), $signed->getId()], 1, [$signed->getId()], 1, [$signed->getId()]],
+            [$all['total'], array_column($all['items'], 'contractId'), $expiry['total'], array_column($expiry['items'], 'contractId'), $indexation['total'], array_column($indexation['items'], 'contractId')]
+        );
     }
 
     public function testIndependentEventsAreGloballySortedIncludingOverdueDates(): void

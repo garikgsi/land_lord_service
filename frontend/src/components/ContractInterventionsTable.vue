@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import useCreateNavigation from '../use/createNavigation';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
+import { RouterLink } from 'vue-router';
 import SelectInput from './ui/SelectInput.vue';
 import ContractDetailsModal from './ContractDetailsModal.vue';
 import ContractInterventionActions from './ContractInterventionActions.vue';
@@ -16,9 +17,9 @@ import type { ContractInterventionRow } from '../types/components/ContractInterv
 import type { RegistryList } from '../types/api/Registry';
 import type { TableColumn } from '../types/components/ui/DataTable';
 
+const { fromTable } = useCreateNavigation();
 const { api, errorText } = useApi();
 const auth = useAuthStore();
-const route = useRoute();
 const selected = ref<ContractIntervention>();
 const action = ref('all');
 const contractType = ref('all');
@@ -269,7 +270,7 @@ onBeforeUnmount(() => {
       />
       <RouterLink
         v-else-if="column.key === 'actions'"
-        :to="{ path: row.editPath, query: { returnTo: route.fullPath } }"
+        :to="fromTable(row.editPath)"
         class="btn"
       >
         Изменить

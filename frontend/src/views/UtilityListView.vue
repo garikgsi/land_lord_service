@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import useCreateNavigation from '../use/createNavigation';
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { IconPlus } from '@tabler/icons-vue';
@@ -10,6 +11,7 @@ import type { UtilityRegistryProps } from '../types/forms/Meter';
 import type { RegistryList } from '../types/api/Registry';
 import type { TableColumn } from '../types/components/ui/DataTable';
 
+const { fromTable } = useCreateNavigation();
 const props = defineProps<UtilityRegistryProps>();
 const auth = useAuthStore();
 const deleteEndpoint = computed(() => (auth.canManageMeters ? '/api/' + props.kind : undefined));
@@ -111,7 +113,7 @@ onMounted(load);
         #actions
       >
         <RouterLink
-          :to="base + '/new'"
+          :to="fromTable(base + '/new')"
           class="btn btn-primary list-add-button"
           title="Добавить"
           aria-label="Добавить"

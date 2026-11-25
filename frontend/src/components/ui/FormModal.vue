@@ -25,7 +25,7 @@ onBeforeUnmount(() => dialog.value?.close());
     <dialog
       ref="dialog"
       class="ui-dialog"
-      :class="{ 'ui-dialog-wide': wide }"
+      :class="{ 'ui-dialog-wide': wide, 'ui-dialog-compact': compact }"
       :aria-labelledby="titleId"
       :aria-busy="!!busy"
       @cancel="escape"

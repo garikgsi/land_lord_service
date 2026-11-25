@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ModalFormActions from './ui/ModalFormActions.vue';
 import { computed, ref } from 'vue';
 import ReferenceSelect from './ui/ReferenceSelect.vue';
 import useApi, { ApiError } from '../use/api';
@@ -14,6 +15,7 @@ const saving = ref(false);
 const error = ref('');
 const fieldError = ref('');
 const { api, errorText } = useApi();
+const canSave = computed(() => !!providerId.value && !!unityId.value && !saving.value);
 const dirty = computed(() => providerId.value !== null);
 
 async function save() {
@@ -83,22 +85,10 @@ defineExpose({ saving, dirty });
         @update:model-value="fieldError = ''"
       />
     </div>
-    <div class="modal-footer">
-      <button
-        type="submit"
-        class="btn btn-primary"
-        :disabled="!providerId || !unityId || saving"
-      >
-        Добавить
-      </button>
-      <button
-        type="button"
-        class="btn"
-        :disabled="saving"
-        @click="emit('cancel')"
-      >
-        Отмена
-      </button>
-    </div>
+    <ModalFormActions
+      :saving="saving"
+      :can-save="canSave"
+      @close="emit('cancel')"
+    />
   </form>
 </template>

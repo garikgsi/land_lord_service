@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ModalFormActions from './ui/ModalFormActions.vue';
 import FormBackButton from './ui/FormBackButton.vue';
 import { computed, ref } from 'vue';
 import TextInput from './ui/TextInput.vue';
@@ -130,7 +131,7 @@ defineExpose({ dirty, saving });
       </div>
     </div>
     <div
-      v-if="auth.canManageRentalRegistry || !modal"
+      v-if="!modal"
       class="card-footer d-flex flex-wrap gap-2"
     >
       <button
@@ -141,19 +142,13 @@ defineExpose({ dirty, saving });
       >
         {{ saveLabel }}
       </button>
-      <button
-        v-if="modal"
-        type="button"
-        class="btn"
-        :disabled="saving"
-        @click="emit('cancel')"
-      >
-        Отмена
-      </button>
-      <FormBackButton
-        v-else
-        to="/objects/land-lords"
-      />
+      <FormBackButton to="/objects/land-lords" />
     </div>
+    <ModalFormActions
+      v-if="modal && auth.canManageRentalRegistry"
+      :saving="saving"
+      :can-save="canSave"
+      @close="emit('cancel')"
+    />
   </form>
 </template>
